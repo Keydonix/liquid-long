@@ -21,8 +21,15 @@ RUN mkdir makertools && cd makertools && \
         (cd dapp && git checkout a426596705be4dfcdd60e7965163453574459dcf) && \
         git clone https://github.com/dapphub/ethsign && \
         (cd ethsign && git checkout d7591c9cac762f15c7087c2d066176bb75ba8095) && \
-        make link -C seth && \
-        make link -C dapp
+        git clone https://github.com/keenerd/jshon.git && \
+        (cd jshon && git checkout d919aeaece37962251dbe6c1ee50f0028a5c90e4) && \
+        make link -C seth prefix=/build/artifacts && \
+        make link -C dapp prefix=/build/artifacts && \
+        make -C jshon && \
+        make install -C jshon TARGET_PATH=/build/artifacts/bin
+
+ENV PATH="/build/artifacts/bin:${PATH}"
+
 
 WORKDIR /build/sai
 RUN dapp build
