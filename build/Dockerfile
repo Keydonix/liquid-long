@@ -25,7 +25,7 @@ RUN mkdir makertools && cd makertools && \
 	(cd jshon && git checkout d919aeaece37962251dbe6c1ee50f0028a5c90e4) && \
 	make link -C seth prefix=/build/artifacts && \
 	make link -C dapp prefix=/build/artifacts && \
-	make -C jshon && \
+	make -C jshon LDFLAGS="-static" && \
 	make install -C jshon TARGET_PATH=/build/artifacts/bin
 
 ENV PATH="/build/artifacts/bin:${PATH}"
