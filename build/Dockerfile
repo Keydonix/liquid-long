@@ -23,8 +23,11 @@ RUN apt-get update && \
 # steps to install Nix and DappHub tools
 RUN mkdir makertools && cd makertools && \
         git clone https://github.com/dapphub/seth && \
+        (cd seth && git checkout de7048815c4953da391b93179af9c2c162e59b23) && \
         git clone https://github.com/dapphub/dapp && \
+        (cd dapp && git checkout a426596705be4dfcdd60e7965163453574459dcf) && \
         git clone https://github.com/dapphub/ethsign && \
+        (cd ethsign && git checkout d7591c9cac762f15c7087c2d066176bb75ba8095) && \
         make link -C seth && \
         make link -C dapp
 
