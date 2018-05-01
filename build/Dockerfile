@@ -1,24 +1,17 @@
 FROM d62e211afe892e3ee7b9018c8b39798d62d1c9b48e410b20fa4a1f8cc8201f42
 #    node:8.11.1-stretch
 
+ADD ./vendor /tmp/vendor
+
 WORKDIR /build
 
-# get PPA solc
-RUN apt-get update && apt-get install -y software-properties-common && \
-    add-apt-repository ppa:ethereum/ethereum
-
-RUN git clone https://github.com/makerdao/sai.git
-
-WORKDIR /build/sai
-RUN git checkout 56eed66bb42a485ff0819f4ca227f615b1eb5320 && \
-    git submodule update --init --recursive
-
-RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1C52189C923F6CA9
+RUN git clone https://github.com/makerdao/sai.git && \
+    ( cd sai && \
+      git checkout 56eed66bb42a485ff0819f4ca227f615b1eb5320 && \
+      git submodule update --init --recursive )
 
 # install tools and dependencies
-RUN apt-get update && \
-        apt-get install -y \
-        solc=1:0.4.23-0ubuntu1~bionic
+RUN dpkg -i /tmp/vendor/*.deb
 
 # steps to install Nix and DappHub tools
 RUN mkdir makertools && cd makertools && \
