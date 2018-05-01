@@ -18,7 +18,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 1C52189C923F6CA9
 # install tools and dependencies
 RUN apt-get update && \
         apt-get install -y \
-        solc
+        solc=1:0.4.23-0ubuntu1~bionic
 
 # steps to install Nix and DappHub tools
 RUN mkdir makertools && cd makertools && \
