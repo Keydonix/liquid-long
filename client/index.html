@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<link href="index.css" rel="stylesheet" type="text/css" integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb">
+	<script src="index.js" type="module" integrity="sha384-SCvsabRFGEmWJOzfe9dw5kNmhij5xoEWLvHAqbky1fm5GUXDxO9w9NLdiO58i09s"></script>
+</head>
+
+<body>
+	<form id="open-cdp-form">
+		<table>
+			<tr>
+				<td style="text-align:right">Price of ETH</td>
+				<td id="eth-price">?</td>
+			</tr>
+			<tr>
+				<td style="text-align: right">Best ETH:DAI Offer</td>
+				<td id="best-eth-price">?</td>
+			</tr>
+			<tr>
+				<td style="text-align:right">Leverage Target</td>
+				<td>
+					<input id="leverage-multiplier" type="number" autocomplete="off" autofocus="true" inputmode="decimal" min="1" max="3" step="0.01"
+					 placeholder="2.0" required="true" tabindex="1" oninput="update()">
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align:right">Liquidation Price</td>
+				<td id="liquidation-price"></td>
+			</tr>
+			<tr>
+				<td style="text-align: right">ETH to Leverage</td>
+				<td>
+					<input id="leverage-size" type="number" autocomplete="off" autofocus inputmode="decimal" min="0" max="1000" step=".0001"
+					 placeholder="1.0" required tabindex="2" oninput="update()">
+				</td>
+			</tr>
+			<tr>
+				<td style="text-align:right">Our Fee (1% of loan)</td>
+				<td id="fee-provider">?</td>
+			</tr>
+			<tr>
+				<td style="text-align:right">Exchange Costs</td>
+				<td id="fee-exchange">?</td>
+			</tr>
+			<tr>
+				<td style="text-align: right">Total</td>
+				<td id="fee-total">?</td>
+			</tr>
+			<tr>
+				<td colspan="2" style="text-align: center">
+					<input type="submit" onclick="createCdp()" value="Create CDP">
+				</td>
+			</tr>
+		</table>
+	</form>
+
+</body>
+
+</html>
