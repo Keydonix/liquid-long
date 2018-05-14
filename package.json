@@ -1,0 +1,21 @@
+{
+	"name": "liquid-long",
+	"version": "1.0.0",
+	"main": "client/index.html",
+	"scripts": {
+		"integrity": "node deployment/update-integrity.js"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Keydonix/liquid-long.git"
+	},
+	"author": "Keydonix",
+	"license": "Unlicense",
+	"bugs": {
+		"url": "https://github.com/Keydonix/liquid-long/issues"
+	},
+	"homepage": "https://github.com/Keydonix/liquid-long#readme",
+	"devDependencies": {
+		"ssri": "6.0.0"
+	}
+}
