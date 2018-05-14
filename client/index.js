@@ -52,16 +52,16 @@ function randomBelow(maximum, range) {
 	return (Math.random() * range) + maximum - range
 }
 
-function require(constraint, message) {
+function assert(constraint, message) {
 	if (!constraint) throw new Error(`Constraint failed.${(message === undefined) ? '' : `  ${message}`}`);
 }
 
 /** @param {string} value */
 function leftPad64Zeros(value) {
-	require(typeof value === 'string', `typeof ${value} === 'string'`)
-	require(value.length <= 64, `${value.length} <= 64`)
-	require(value.length > 0, `${value.length} > 0`)
-	require(/^[a-zA-Z0-9]*$/.test(value), `/[a-zA-Z0-9]{1,64}/.test(${value})`)
+	assert(typeof value === 'string', `typeof ${value} === 'string'`)
+	assert(value.length <= 64, `${value.length} <= 64`)
+	assert(value.length > 0, `${value.length} > 0`)
+	assert(/^[a-zA-Z0-9]*$/.test(value), `/[a-zA-Z0-9]{1,64}/.test(${value})`)
 	return ('0000000000000000000000000000000000000000000000000000000000000000' + value).slice(-64)
 }
 
@@ -70,10 +70,11 @@ function abiEncodeNumber(value) {
 	return leftPad64Zeros(value.toString(16))
 }
 
-/** @param {JsonRpc} options */
-async function sendAsync(options) {
+/** @param {JsonRpc} jsonRpc */
+async function sendAsyncWeb3(jsonRpc) {
+	assert(web3.currentProvider !== undefined, `web3.currentProvider is undefined`)
 	return new Promise((resolve, reject) => {
-		web3.currentProvider.sendAsync(options, (error, response) => {
+		web3.currentProvider.sendAsync(jsonRpc, (error, response) => {
 			if (response !== undefined && response.result !== undefined) {
 				resolve(response.result)
 			} else if (error !== undefined && error !== null) {
@@ -85,6 +86,30 @@ async function sendAsync(options) {
 			}
 		})
 	})
+}
+
+/** @param {JsonRpc} jsonRpc */
+async function sendAsyncHosted(jsonRpc) {
+	const response = await fetch('http://parity.zoltu.com:8545', {
+		method: 'POST',
+		headers: new Headers({
+			'Content-Type': 'application/json',
+			'Accept': 'application/json',
+		}),
+		body: JSON.stringify(jsonRpc),
+	})
+	if (!response.ok) throw new Error(`Response contained non-success status code: ${response.status} ${response.statusText}\nRequest:\n${JSON.stringify(jsonRpc)}\nResponse:\n${await response.text()}`)
+	const body = await response.json()
+	if (body.error !== undefined) throw new Error(`RPC error: ${body.error.code} ${body.error.message}\nRequest:\n${JSON.stringify(jsonRpc)}\nResponse:\n${JSON.stringify(body)}`)
+	assert(body.result !== undefined, `Malformed RPC response: result undefined\nRequest:\n${JSON.stringify(jsonRpc)}\nResponse:\n${JSON.stringify(body)}`)
+	return body.result
+}
+
+/** @param {JsonRpc} jsonRpc */
+async function sendAsync(jsonRpc, signerRequired) {
+	return ((typeof web3 !== 'undefined' && web3.currentProvider !== undefined) || signerRequired === true)
+		? sendAsyncWeb3(jsonRpc)
+		: sendAsyncHosted(jsonRpc)
 }
 
 /** @param {Transaction} transaction */
@@ -119,7 +144,7 @@ export class Maker {
 					data: `0x${pipSignatureHash}`
 				}
 				const result = await ethCall(transaction)
-				require(/^0x[a-zA-Z0-9]{64}$/.test(result), `/^0x[a-zA-Z0-9]{64}$/.test(${result})`)
+				assert(/^0x[a-zA-Z0-9]{64}$/.test(result), `/^0x[a-zA-Z0-9]{64}$/.test(${result})`)
 				return result.substr(-40)
 			}
 
@@ -131,7 +156,7 @@ export class Maker {
 					data: `0x${readSignatureHash}`
 				}
 				const stringResult = await ethCall(transaction)
-				require(/^0x[a-zA-Z0-9]{1,64}$/.test(stringResult), `/^0x[a-zA-Z0-9]{1,64}$/.test(${stringResult})`)
+				assert(/^0x[a-zA-Z0-9]{1,64}$/.test(stringResult), `/^0x[a-zA-Z0-9]{1,64}$/.test(${stringResult})`)
 				// stringResult is a number in the range [0.00, 1,000,000,000,000.00] * 10^18. This means the number will be precise within a double before the division, and the division will remain precise.  Also, if we are off by a tiny amount we don't actually care.
 				return parseInt(stringResult, 16) / 10**18
 			}
@@ -148,20 +173,23 @@ export class Oasis {
 		this.daiAddress = daiAddress
 
 		this.getBuyAmount = async (daiToDraw) => {
-			// FIXME: figure out how to handle daiToDraw being larger than available volume on Oasis
 			// function getBuyAmount(address, address, uint256) {}
 			const getBuyAmountSignatureHash = '144a2752'
 			// rounding of daiToDraw is fine because all of this is used for giving the user an estimate, not an exact number
 			const attodaiToDraw = abiEncodeNumber(daiToDraw * 10**18)
-			const account = web3.eth.accounts[0]
 			const transaction = {
 				to: `0x${this.oasisAddress}`,
 				data: `0x${getBuyAmountSignatureHash}${leftPad64Zeros(this.wethAddress)}${leftPad64Zeros(this.daiAddress)}${abiEncodeNumber(attodaiToDraw)}`,
 			}
-			const stringResult = await ethCall(transaction)
-			require(/^0x[a-zA-Z0-9]{1,64}$/.test(stringResult), `/^0x[a-zA-Z0-9]{1,64}$/.test(${stringResult})`)
-			// stringResult could be a number that doesn't fit into a double, but the UI doesn't care about losing some precision since we are using this to give the user a recommendation for what they will end up paying, and we are truncating to 2 decimals in the UI anyway
-			return parseInt(stringResult, 16) / 10**18
+			try {
+				const stringResult = await ethCall(transaction)
+				assert(/^0x[a-zA-Z0-9]{1,64}$/.test(stringResult), `/^0x[a-zA-Z0-9]{1,64}$/.test(${stringResult})`)
+				// stringResult could be a number that doesn't fit into a double, but the UI doesn't care about losing some precision since we are using this to give the user a recommendation for what they will end up paying, and we are truncating to 2 decimals in the UI anyway
+				return parseInt(stringResult, 16) / 10**18
+			} catch (error) {
+				// this happens if the orderbook doesn't have enough depth to liquidate all of the DAI
+				return NaN
+			}
 		}
 	}
 }
@@ -342,3 +370,5 @@ window.createCdp = cdpOpener.createCdp
 window.limitEthPriceChanged = cdpOpener.limitEthPriceChanged
 window.leverageMultiplierChanged = cdpOpener.leverageMultiplierChanged
 window.leverageSizeChanged = cdpOpener.leverageSizeChanged
+
+// TODO: add window.onerror handler for presenting uncaught errors to the user (makes troubleshooting/support much easier)
