@@ -1,0 +1,47 @@
+nav {
+	background-color: #333;
+	margin: 0;
+	overflow: hidden;
+}
+
+nav ul {
+	margin: 0;
+	padding: 0;
+}
+
+nav ul li {
+	display: inline-block;
+	list-style-type: none;
+}
+
+nav ul li button {
+	color: #aaa;
+	background-color: #333;
+	display: block;
+	line-height: 2em;
+	padding: 0.5em 0.5em;
+	text-decoration: none;
+	border: none;
+}
+
+nav ul li button.active {
+	color: #FF0
+}
+
+nav ul li button:hover {
+	background-color: #666
+}
+
+th, td {
+	padding: 10px;
+	border-left: 1px solid #ddd;
+	border-bottom: 1px solid #ddd;
+}
+
+th:first-child, td:first-child {
+	border-right: none;
+}
+
+tbody tr:hover {
+	background-color: #cfcfcf;
+}

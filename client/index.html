@@ -5,64 +5,136 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<link href="index.css" rel="stylesheet" type="text/css" integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb">
-	<script src="index.js" type="module" integrity="sha384-6AAh3WQMUkvxG6ui9vXFxCdS1Q0kFBI+QWGq8GvQgFCZ6jh8PIjbRJnjv6qlhAxj"></script>
+	<link href="index.css" rel="stylesheet" type="text/css" integrity="sha384-SxaC7FWZ1PArVjgxErmdSx67wXX1LSbJmom7Tw+sqVlKnQOxSO8dkjyInjiij38m">
+	<script src="index.js" type="module" integrity="sha384-RMV710nXTYmLfUw8t4Y6q7ato6vff4TUFZUdaAIrf7YUcxVr6tCGv2g5WHYIJYMh"></script>
 </head>
 
 <body>
+	<nav>
+		<ul>
+			<li>
+				<button id="open-cdp-nav">Open</button>
+			</li>
+			<li>
+				<button id="close-cdp-nav">Close</button>
+			</li>
+		</ul>
+	</nav>
+
 	<form id="open-cdp-form" onsubmit="return false">
 		<table>
 			<tr>
 				<td style="text-align:right">Official Price of ETH</td>
-				<td><ins id="eth-price">?</ins> USD</td>
+				<td>
+					<ins id="eth-price">?</ins> USD</td>
 			</tr>
 			<tr>
 				<td style="text-align:right">Estimated Price of ETH</td>
-				<td><ins id="estimated-eth-price">?</ins> DAI</td>
+				<td>
+					<ins id="estimated-eth-price">?</ins> DAI</td>
 			</tr>
 			<tr>
 				<td style="text-align: right">Limit Price of ETH</td>
 				<td>
 					<!-- FIXME: we use onblur here so we aren't hammering the ethereum node with updates as the user types, but this means that field updates that don't result in blur don't work (e.g., range increase/decrease in Firefox).  Consider changing to onchange, but then having JS side rate limiting or baked in delays. -->
 					<input id="limit-eth-price" type="number" autocomplete="off" autofocus="false" inputmode="decimal" min="0" max="0" step="0.01"
-					 placeholder="?" required="true" tabindex="10" value="" onblur="limitEthPriceChanged(this.value)">
+					 placeholder="?" required="true" tabindex="10" value="">
 				</td>
 			</tr>
 			<tr>
 				<td style="text-align:right">Leverage Target</td>
 				<td>
 					<input id="leverage-multiplier" type="number" autocomplete="off" autofocus="false" inputmode="decimal" min="1" max="3" step="0.01"
-					 placeholder="2.0" required="true" tabindex="20" value="" onblur="leverageMultiplierChanged(this.value)">
+					 placeholder="2.0" required="true" tabindex="20" value="">
 				</td>
 			</tr>
 			<tr>
 				<td style="text-align:right">Liquidation Price</td>
-				<td><ins id="liquidation-price">?</ins> USD</td>
+				<td>
+					<ins id="liquidation-price">?</ins> USD</td>
 			</tr>
 			<tr>
 				<td style="text-align: right">ETH to Leverage</td>
 				<td>
 					<input id="leverage-size" type="number" autocomplete="off" autofocus="false" inputmode="decimal" min="0" max="1000" step=".0001"
-					 placeholder="1.0" required="true" tabindex="30" value="" onBlur="leverageSizeChanged(this.value)">
+					 placeholder="1.0" required="true" tabindex="30" value="">
 				</td>
 			</tr>
 			<tr>
 				<td style="text-align:right">Our Fee (1% of loan)</td>
-				<td><ins id="fee-provider">?</ins> ETH</td>
+				<td>
+					<ins id="fee-provider">?</ins> ETH</td>
 			</tr>
 			<tr>
 				<td style="text-align:right">Exchange Costs</td>
-				<td><ins id="fee-exchange">?</ins> ETH</td>
+				<td>
+					<ins id="fee-exchange">?</ins> ETH</td>
 			</tr>
 			<tr>
 				<td style="text-align: right">Total</td>
-				<td><ins id="fee-total">?</ins> ETH</td>
+				<td>
+					<ins id="fee-total">?</ins> ETH</td>
 			</tr>
 			<tr>
 				<td colspan="2" style="text-align: center">
-					<input type="submit" onclick="createCdp()" value="Create CDP">
+					<input id="create-cdp-button" type="submit" value="Create CDP">
 				</td>
 			</tr>
+		</table>
+	</form>
+
+	<form id="close-cdp-form" onsubmit="return false" hidden>
+		<table>
+			<thead>
+				<tr>
+					<th rowspan="2">ID</th>
+					<th rowspan="2">ETH Collateral</th>
+					<th rowspan="2">DAI Debt</th>
+					<th colspan="2">Closing Costs</th>
+					<th rowspan="2" colspan="2">Close CDP</th>
+				</tr>
+				<tr>
+					<th>Our Fee</th>
+					<th>Exchange Cost</th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td>1</td>
+					<td>1</td>
+					<td>250</td>
+					<td>0.01</td>
+					<td>0.05</td>
+					<td>
+						<button>Close (step 1/2)</button>
+					</td>
+					<td></td>
+				</tr>
+				<tr>
+					<td>2</td>
+					<td>1</td>
+					<td>250</td>
+					<td>0.01</td>
+					<td>0.05</td>
+					<td>
+						<button>Cancel Close</button>
+					</td>
+					<td>
+						<button>Close (step 2/2)</button>
+					</td>
+				</tr>
+				<tr>
+					<td>3</td>
+					<td>1</td>
+					<td>250</td>
+					<td>0.01</td>
+					<td>0.05</td>
+					<td>
+						<button>Close (step 1/2)</button>
+					</td>
+					<td></td>
+				</tr>
+			</tbody>
 		</table>
 	</form>
 
