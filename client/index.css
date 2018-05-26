@@ -6,6 +6,7 @@
 	text-align: center;
 }
 
+
 nav {
 	background-color: #333;
 	margin: 0;
@@ -41,10 +42,12 @@ nav ul li:last-child {
 	float:right;
 }
 
+
 #root-div {
 	display: flex;
 	justify-content: center;
 }
+
 
 th, td {
 	padding: 10px;
@@ -57,6 +60,7 @@ th:first-child, td:first-child {
 tbody tr:hover {
 	background-color: #cfcfcf;
 }
+
 
 .loading {
 	display: inline-block;
@@ -74,6 +78,7 @@ tbody tr:hover {
 	animation: spin 1s steps(10) infinite;
 }
 @keyframes spin { to { transform: translateY(-15.0em); } }
+
 
 [data-tip] {
 	position:relative;
