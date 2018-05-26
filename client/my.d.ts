@@ -7,10 +7,12 @@ interface Transaction {
 	data: string
 }
 
+type JsonRpcMethods = 'eth_call' | 'net_version' | 'eth_coinbase'
+
 interface JsonRpcRequest {
 	jsonrpc: '2.0'
 	id: number
-	method: 'eth_call'
+	method: JsonRpcMethods
 	from?: string
 	params: (Transaction|'latest')[]
 }
@@ -39,8 +41,9 @@ interface Window {
 }
 
 interface StateUpdate {
+	networkId?: '1'|'3'|'4'|'42'
+	account?: string
 	mode?: 'opening'|'closing'
-	updatesPending?: boolean
 	priceOfEthInUsd?: number
 	estimatedPriceOfEthInDai?: number
 	limitPriceOfEthInDai?: number
