@@ -40,13 +40,49 @@ interface Window {
 	web3: Web3
 }
 
+type Networks = '1'|'3'|'4'|'42'
+type Modes = 'opening'|'closing'
+type InsufficientDepth = 'insufficient depth'
+
+// null is used to reset a value to its default
 interface StateUpdate {
-	networkId?: '1'|'3'|'4'|'42'
-	account?: string
-	mode?: 'opening'|'closing'
-	priceOfEthInUsd?: number
-	estimatedPriceOfEthInDai?: number
-	limitPriceOfEthInDai?: number
-	leverageMultiplier?: number
-	leverageSizeInEth?: number
+	networkId?: Networks | null
+	account?: string | null
+	mode?: Modes | null
+	priceOfEthInUsd?: number | null
+	estimatedPriceOfEthInDai?: number | InsufficientDepth | null
+	limitPriceOfEthInDai?: number | null
+	leverageMultiplier?: number | null
+	leverageSizeInEth?: number | null
+}
+
+// The following is necessary due to a bug in the TypeScript definition file, can be removed when https://github.com/Keydonix/liquid-long/pull/22 is merged
+interface NumberConstructor {
+	/**
+	 * Returns true if passed value is finite.
+	 * Unlike the global isFinite, Number.isFinite doesn't forcibly convert the parameter to a
+	 * number. Only finite values of the type number, result in true.
+	 * @param value A numeric value.
+	 */
+	isFinite(value: any): value is number;
+
+	/**
+	 * Returns true if the value passed is an integer, false otherwise.
+	 * @param value A numeric value.
+	 */
+	isInteger(value: any): value is number;
+
+	/**
+	 * Returns a Boolean value that indicates whether a value is the reserved value NaN (not a
+	 * number). Unlike the global isNaN(), Number.isNaN() doesn't forcefully convert the parameter
+	 * to a number. Only values of the type number, that are also NaN, result in true.
+	 * @param value A numeric value.
+	 */
+	isNaN(value: any): value is number;
+
+	/**
+	 * Returns true if the value passed is a safe integer.
+	 * @param value A numeric value.
+	 */
+	isSafeInteger(value: any): value is number;
 }

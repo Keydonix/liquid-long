@@ -70,6 +70,17 @@ async function schedule(milliseconds, callback) {
 	await callback()
 }
 
+/** @param {Networks} networkId */
+function networkIdToEtherscanName(networkId) {
+	switch (networkId) {
+		case '1': return 'www'
+		case '3': return 'ropsten'
+		case '4': return 'rinkeby'
+		case '42': return 'kovan'
+		default: throw new Error(`Unknown network ID: ${networkId}`)
+	}
+}
+
 export class EthereumClient {
 	constructor() {
 		/** @param {JsonRpcRequest} jsonRpc */
@@ -157,7 +168,7 @@ export class EthereumClient {
 		}
 
 		/**
-		 * @returns {Promise<string>}
+		 * @returns {Promise<string|null>}
 		 */
 		this.ethCoinbase = async () => {
 			const payload = constructJsonRpcPayload('eth_coinbase', [])
@@ -174,21 +185,91 @@ export class EthereumClient {
 export class State {
 	/** @param {StateUpdate} source */
 	constructor(source) {
-		// copy in the source, validating and falling back to defaults as we do
-		this._networkId = (source.networkId === '1' || source.networkId === '3' || source.networkId === '4' || source.networkId === '42') ? source.networkId : '1'
-		this._account = (isAddress(source.account)) ? source.account : null
-		this._mode = (source.mode === 'opening' || source.mode === 'closing') ? source.mode : 'opening'
-		this._priceOfEthInUsd = (Number.isFinite(source.priceOfEthInUsd)) ? source.priceOfEthInUsd : NaN
-		this._estimatedPriceOfEthInDai = (Number.isFinite(source.estimatedPriceOfEthInDai)) ? source.estimatedPriceOfEthInDai : NaN
-		this._limitPriceOfEthInDai = (Number.isFinite(source.limitPriceOfEthInDai)) ? source.limitPriceOfEthInDai : this._estimatedPriceOfEthInDai
-		this._leverageMultiplier = (Number.isFinite(source.leverageMultiplier)) ? source.leverageMultiplier : 2
-		this._leverageSizeInEth = (Number.isFinite(source.leverageSizeInEth)) ? source.leverageSizeInEth : 1
+		/** @returns {Networks} */
+		function sanitizeNetworkId() {
+			switch (source.networkId) {
+				case '1':
+				case '3':
+				case '4':
+				case '42':
+					return source.networkId
+				default:
+					return '1'
+			}
+		}
 
-		// constrain values
-		if (this._limitPriceOfEthInDai < this._priceOfEthInUsd) this._limitPriceOfEthInDai = this._priceOfEthInUsd
-		if (this._leverageMultiplier < 1) this._leverageMultiplier = 1
-		if (this._leverageMultiplier > 3) this._leverageMultiplier = 3
-		if (this._leverageSizeInEth <= 0) this._leverageSizeInEth = 0
+		/** @returns {string | null} */
+		function sanitizeAccount() {
+			if (typeof source.account !== 'string') return null
+			if (!isAddress(source.account)) return null
+			return source.account
+		}
+
+		/** @returns {Modes} */
+		function sanitizeMode() {
+			switch (source.mode) {
+				case 'opening':
+				case 'closing':
+					return source.mode
+				default:
+					return 'opening'
+			}
+		}
+
+		/** @returns {number} */
+		function sanitizePriceOfEthInUsd() {
+			return Number.isFinite(source.priceOfEthInUsd)
+				? source.priceOfEthInUsd
+				: NaN
+		}
+
+		/** @returns {number | 'insufficient depth'} */
+		function sanitizeEstimatedPriceOfEthInDai() {
+			if (source.estimatedPriceOfEthInDai === 'insufficient depth') return 'insufficient depth'
+			return Number.isFinite(source.estimatedPriceOfEthInDai)
+				? source.estimatedPriceOfEthInDai
+				: NaN
+		}
+
+		/**
+		 * @param {number} priceOfEthInUsd
+		 * @param {number | 'insufficient depth'} estimatedPriceOfEthInDai
+		 * @returns {number}
+		 */
+		function sanitizeLimitPriceOfEthInDai(priceOfEthInUsd, estimatedPriceOfEthInDai) {
+			const unconstrained = Number.isFinite(source.limitPriceOfEthInDai)
+				? source.limitPriceOfEthInDai
+				: (estimatedPriceOfEthInDai !== 'insufficient depth')
+					? estimatedPriceOfEthInDai
+					: priceOfEthInUsd
+			return Math.max(unconstrained, priceOfEthInUsd)
+		}
+
+		/** @returns {number} */
+		function sanitizeLeverageMultiplier() {
+			const unconstrained = Number.isFinite(source.leverageMultiplier)
+				? source.leverageMultiplier
+				: 2
+			return Math.min(Math.max(unconstrained, 1), 3)
+		}
+
+		/** @returns {number} */
+		function sanitizeLeverageSizeInEth() {
+			const unconstrained = Number.isFinite(source.leverageSizeInEth)
+				? source.leverageSizeInEth
+				: 1
+			return Math.max(unconstrained, 1)
+		}
+
+		// copy in the source, validating and falling back to defaults as we do
+		this._networkId = sanitizeNetworkId()
+		this._account = sanitizeAccount()
+		this._mode = sanitizeMode()
+		this._priceOfEthInUsd = sanitizePriceOfEthInUsd()
+		this._estimatedPriceOfEthInDai = sanitizeEstimatedPriceOfEthInDai()
+		this._limitPriceOfEthInDai = sanitizeLimitPriceOfEthInDai(this._priceOfEthInUsd, this._estimatedPriceOfEthInDai)
+		this._leverageMultiplier = sanitizeLeverageMultiplier()
+		this._leverageSizeInEth = sanitizeLeverageSizeInEth()
 
 		/** @param {StateUpdate} stateUpdate */
 		this.update = (stateUpdate) => {
@@ -210,8 +291,8 @@ export class State {
 			return this._networkId === other._networkId
 				&& this._account === other._account
 				&& this._mode === other._mode
-				&& this._priceOfEthInUsd === other._priceOfEthInUsd
-				&& this._estimatedPriceOfEthInDai === other._estimatedPriceOfEthInDai
+				&& (this._priceOfEthInUsd === other._priceOfEthInUsd || (Number.isNaN(this._priceOfEthInUsd) && Number.isNaN(other._priceOfEthInUsd)))
+				&& (this._estimatedPriceOfEthInDai === other._estimatedPriceOfEthInDai || (Number.isNaN(this._estimatedPriceOfEthInDai) && Number.isNaN(other._estimatedPriceOfEthInDai)))
 				&& this._limitPriceOfEthInDai === other._limitPriceOfEthInDai
 				&& this._leverageMultiplier === other._leverageMultiplier
 				&& this._leverageSizeInEth === other._leverageSizeInEth
@@ -221,24 +302,42 @@ export class State {
 		Object.freeze(this)
 	}
 
+	/** @returns {Networks} */
 	get networkId() { return this._networkId }
+	/** @returns {string | null} */
 	get account() { return this._account }
+	/** @returns {Modes} */
 	get mode() { return this._mode }
+	/** @returns {number} */
 	get priceOfEthInUsd() { return this._priceOfEthInUsd }
+	/** @returns {number | InsufficientDepth} */
 	get estimatedPriceOfEthInDai() { return this._estimatedPriceOfEthInDai }
+	/** @returns {number} */
 	get limitPriceOfEthInDai() { return this._limitPriceOfEthInDai }
+	/** @returns {number} */
 	get leverageMultiplier() { return this._leverageMultiplier }
+	/** @returns {number} */
 	get leverageSizeInEth() { return this._leverageSizeInEth }
 
-	get minLimitPriceOfEthInDai() { return this.priceOfEthInUsd }
-	get maxLimitPriceOfEthInDai() { return this.priceOfEthInUsd * 2 }
+	/** @returns {number} */
+	get minLimitPriceOfEthInDai() { return (this.priceOfEthInUsd !== undefined && this.priceOfEthInUsd !== null) ? this.priceOfEthInUsd : 0 }
+	/** @returns {number} */
+	get maxLimitPriceOfEthInDai() { return (this.priceOfEthInUsd !== undefined && this.priceOfEthInUsd !== null) ? this.priceOfEthInUsd * 2: 1000000 }
+	/** @returns {number} */
 	get cdpSize() { return this.leverageMultiplier * this.leverageSizeInEth }
+	/** @returns {number} */
 	get loanSize() { return this.cdpSize - this.leverageSizeInEth }
+	/** @returns {number} */
 	get daiToDraw() { return this.loanSize * this.priceOfEthInUsd }
+	/** @returns {number} */
 	get liquidationPriceOfEthInUsd() { return 1.5 * this.daiToDraw / this.cdpSize }
+	/** @returns {number} */
 	get proceedsOfDaiSaleInEth() { return this.daiToDraw / this.limitPriceOfEthInDai }
+	/** @returns {number} */
 	get providerFeeInEth() { return this.loanSize * 0.01 }
+	/** @returns {number} */
 	get exchangeCostInEth() { return this.loanSize - this.proceedsOfDaiSaleInEth }
+	/** @returns {number} */
 	get totalCostInEth() { return this.providerFeeInEth + this.exchangeCostInEth + this.leverageSizeInEth }
 }
 
@@ -255,10 +354,11 @@ export class StateManager {
 		 */
 		this.update = (stateUpdate) => {
 			const newState = state.update(stateUpdate)
-			if (state.equals(newState)) return
+			if (state.equals(newState)) return false
 			const prevState = state
 			state = newState
 			subscribers.forEach(subscriber => subscriber(prevState))
+			return true
 		}
 
 		/** @param {function(State): void} callback */
@@ -324,30 +424,34 @@ export class Presentor {
 	constructor(stateManager) {
 		// subscriptions is mutable because we will be lazily populating the callbacks
 		const subscriptions = {
-			/** @type {function(string):void} */
+			/** @type {(function(string):void) | undefined} */
 			openLimitPriceChanged: undefined,
-			/** @type {function(string):void} */
+			/** @type {(function(string):void) | undefined} */
 			leverageMultiplierChanged: undefined,
-			/** @type {function(string):void} */
+			/** @type {(function(string):void) | undefined} */
 			leverageSizeChanged: undefined,
-			/** @type {function():void} */
+			/** @type {(function():void) | undefined} */
 			cdpCreationInitiated: undefined,
 		}
 
-		function renderOpen() {
+		const renderOpen = () => {
 			// FIXME: add a tooltip to estimatedPriceOfEthInDai when it is NaN, "If this spinner doesn't go away after a bit then it may mean there is not enough ETH for sale on OasisDEX to open this CDP"
 			const state = stateManager.getState()
-			const numberOfEthDecimals = round(Math.log10(state.priceOfEthInUsd), 0) + 1
+			const numberOfEthDecimals = (typeof state.priceOfEthInUsd === 'number' && Number.isFinite(state.priceOfEthInUsd)) ? round(Math.log10(state.priceOfEthInUsd), 0) + 1 : 4
 
-			this.ethPrice.innerHTML = isNaN(state.priceOfEthInUsd) ? '<span class="loading"></span>' : round(state.priceOfEthInUsd, 2).toString(10)
-			this.estimatedEthPrice.innerHTML = isNaN(state.estimatedPriceOfEthInDai) ? '<span class="loading"></span>' : round(state.estimatedPriceOfEthInDai, 2).toString(10)
+			this.ethPrice.innerHTML = Number.isFinite(state.priceOfEthInUsd) ? round(state.priceOfEthInUsd, 2).toString(10) : '<span class="loading"></span>'
+			this.estimatedEthPrice.innerHTML = (Number.isFinite(state.estimatedPriceOfEthInDai) && typeof state.estimatedPriceOfEthInDai === 'number')
+				? round(state.estimatedPriceOfEthInDai, 2).toString(10)
+				: (state.estimatedPriceOfEthInDai === 'insufficient depth')
+					? '<span data-tip="OasisDEX does not have enough ETH available for purchase to open this CDP">⚠</span>'
+					: '<span class="loading"></span>'
 			this.limitEthPrice.setAttribute('min', round(state.minLimitPriceOfEthInDai, 2).toString(10))
 			this.limitEthPrice.setAttribute('max', round(state.maxLimitPriceOfEthInDai, 2).toString(10))
-			this.limitEthPrice.setAttribute('placeholder', round(state.estimatedPriceOfEthInDai, 2).toString(10))
-			this.liquidationPrice.innerHTML = isNaN(state.liquidationPriceOfEthInUsd) ? '<span class="loading"></span>' : round(state.liquidationPriceOfEthInUsd, 2).toString(10)
-			this.feeProvider.innerHTML = isNaN(state.providerFeeInEth) ? '<span class="loading"></span>' : round(state.providerFeeInEth, numberOfEthDecimals).toString(10)
-			this.feeExchange.innerHTML = isNaN(state.exchangeCostInEth) ? '<span class="loading"></span>' : round(state.exchangeCostInEth, numberOfEthDecimals).toString(10)
-			this.feeTotal.innerHTML = isNaN(state.totalCostInEth) ? '<span class="loading"></span>' : round(state.totalCostInEth, numberOfEthDecimals).toString(10)
+			this.limitEthPrice.setAttribute('placeholder', round((state.estimatedPriceOfEthInDai !== 'insufficient depth') ? state.estimatedPriceOfEthInDai : state.priceOfEthInUsd, 2).toString(10))
+			this.liquidationPrice.innerHTML = Number.isFinite(state.liquidationPriceOfEthInUsd) ? round(state.liquidationPriceOfEthInUsd, 2).toString(10) : '<span class="loading"></span>'
+			this.feeProvider.innerHTML = Number.isFinite(state.providerFeeInEth) ? round(state.providerFeeInEth, numberOfEthDecimals).toString(10) : '<span class="loading"></span>'
+			this.feeExchange.innerHTML = Number.isFinite(state.exchangeCostInEth) ? round(state.exchangeCostInEth, numberOfEthDecimals).toString(10) : '<span class="loading"></span>'
+			this.feeTotal.innerHTML = Number.isFinite(state.totalCostInEth) ? round(state.totalCostInEth, numberOfEthDecimals).toString(10) : '<span class="loading"></span>'
 
 			// update input boxes (for clamping/defaulting) _unless_ they have focus (don't mess with them while user is editing)
 			if (this.limitEthPrice !== document.activeElement) this.limitEthPrice.value = round(state.limitPriceOfEthInDai, 2).toString(10)
@@ -355,7 +459,7 @@ export class Presentor {
 			if (this.leverageSize !== document.activeElement) this.leverageSize.value = state.leverageSizeInEth.toString(10)
 		}
 
-		function renderClose() {
+		const renderClose = () => {
 			// TODO
 		}
 
@@ -383,7 +487,7 @@ export class Presentor {
 				throw new Error(`Unexpected mode: ${state.mode}`)
 			}
 			this.accountLabel.innerText = (state.account !== null) ? `0x${state.account}` : ''
-			this.accountLabel.setAttribute('href', `https://etherscan.io/address/0x${state.account}`)
+			this.accountLabel.setAttribute('href', `https://${networkIdToEtherscanName(state.networkId)}.etherscan.io/address/0x${state.account}`)
 
 			renderOpen.bind(this)()
 			renderClose.bind(this)()
@@ -421,7 +525,7 @@ export class Presentor {
 			this.limitEthPrice.addEventListener('blur', () => (subscriptions.openLimitPriceChanged || noop)(this.limitEthPrice.value))
 			this.leverageMultiplier.addEventListener('blur', () => (subscriptions.leverageMultiplierChanged || noop)(this.leverageMultiplier.value))
 			this.leverageSize.addEventListener('blur', () => (subscriptions.leverageSizeChanged || noop)(this.leverageSize.value))
-			this.createCdpButton.addEventListener('click', () => subscriptions.cdpCreationInitiated())
+			this.createCdpButton.addEventListener('click', () => (subscriptions.cdpCreationInitiated || noop)())
 
 			stateManager.subscribeToStateChanges(this.render)
 		}
@@ -430,22 +534,22 @@ export class Presentor {
 		Object.freeze(this)
 	}
 
-	get networkName() { return document.getElementById('network-name') }
-	get openCdpNav() { return document.getElementById('open-cdp-nav') }
-	get closeCdpNav() { return document.getElementById('close-cdp-nav') }
-	get accountLabel() { return document.getElementById('account-label') }
-	get openCdpForm() { return document.getElementById('open-cdp-form') }
-	get closeCdpForm() { return document.getElementById('close-cdp-form') }
-	get ethPrice() { return document.getElementById('eth-price') }
-	get estimatedEthPrice() { return document.getElementById('estimated-eth-price') }
+	get networkName() { return /** @type {HTMLElement} */ (document.getElementById('network-name')) }
+	get openCdpNav() { return /** @type {HTMLElement} */ (document.getElementById('open-cdp-nav')) }
+	get closeCdpNav() { return /** @type {HTMLElement} */ (document.getElementById('close-cdp-nav')) }
+	get accountLabel() { return /** @type {HTMLElement} */ (document.getElementById('account-label')) }
+	get openCdpForm() { return /** @type {HTMLElement} */ (document.getElementById('open-cdp-form')) }
+	get closeCdpForm() { return /** @type {HTMLElement} */ (document.getElementById('close-cdp-form')) }
+	get ethPrice() { return /** @type {HTMLElement} */ (document.getElementById('eth-price')) }
+	get estimatedEthPrice() { return /** @type {HTMLElement} */ (document.getElementById('estimated-eth-price')) }
 	get limitEthPrice() { return /** @type {HTMLInputElement} */ (document.getElementById('limit-eth-price')) }
 	get leverageMultiplier() { return  /** @type {HTMLInputElement} */ (document.getElementById('leverage-multiplier')) }
 	get leverageSize() { return  /** @type {HTMLInputElement} */ (document.getElementById('leverage-size')) }
-	get liquidationPrice() { return document.getElementById('liquidation-price') }
-	get feeProvider() { return document.getElementById('fee-provider') }
-	get feeExchange() { return document.getElementById('fee-exchange') }
-	get feeTotal() { return document.getElementById('fee-total') }
-	get createCdpButton() { return document.getElementById('create-cdp-button') }
+	get liquidationPrice() { return /** @type {HTMLElement} */ (document.getElementById('liquidation-price')) }
+	get feeProvider() { return /** @type {HTMLElement} */ (document.getElementById('fee-provider')) }
+	get feeExchange() { return /** @type {HTMLElement} */ (document.getElementById('fee-exchange')) }
+	get feeTotal() { return /** @type {HTMLElement} */ (document.getElementById('fee-total')) }
+	get createCdpButton() { return /** @type {HTMLElement} */ (document.getElementById('create-cdp-button')) }
 }
 
 export class Maker {
@@ -455,6 +559,7 @@ export class Maker {
 	 */
 	constructor(ethereumClient, contractAddresses) {
 		this.getEthUsdPrice = async () => {
+			// TODO: add some kind of caching for medianizer address so we aren't hitting the local node so hard every time we access the price feed
 			const getMedianizerAddress = async () => {
 				// address public pip;
 				const pipSignatureHash = 'd741e2f9'
@@ -512,7 +617,7 @@ export class Oasis {
 				return parseInt(stringResult, 16) / 10 ** 18
 			} catch (error) {
 				// this happens if the orderbook doesn't have enough depth to liquidate all of the DAI
-				return NaN
+				return 'insufficient depth'
 			}
 		}
 
@@ -530,6 +635,7 @@ export class Poller {
 	constructor(ethereumClient, stateManager, maker, oasis) {
 		this.pollNetworkId = async () => {
 			const networkId = await ethereumClient.netVersion()
+			// intentionally not awaited to avoid stack overflow
 			schedule(1000, this.pollNetworkId)
 			if (networkId !== '1' && networkId !== '3' && networkId !== '4' && networkId !== '42') throw new Error(`Unsupported network ${networkId}`)
 			if (networkId === stateManager.getState().networkId) return
@@ -543,33 +649,32 @@ export class Poller {
 				leverageMultiplier: null,
 				leverageSizeInEth: null,
 			})
-			// intentionally not awaited to avoid stack overflow
 		}
 
 		this.pollCoinbase = async () => {
 			const coinbase = await ethereumClient.ethCoinbase()
+			// intentionally not awaited to avoid stack overflow
 			schedule(1000, this.pollCoinbase)
 			if (coinbase === stateManager.getState().account) return
 			// we need to reset any data that is account specific when the account changes
 			stateManager.update({
 				account: coinbase
 			})
-			// intentionally not awaited to avoid stack overflow
 		}
 
 		this.pollEthPrice = async () => {
 			const priceOfEthInUsd = await maker.getEthUsdPrice()
+			// intentionally not awaited to avoid stack overflow
 			schedule(1000, this.pollEthPrice)
 			stateManager.update({ priceOfEthInUsd: priceOfEthInUsd })
-			// intentionally not awaited to avoid stack overflow
 		}
 
 		this.pollDaiProceeds = async () => {
 			const daiProceeds = await oasis.getBuyAmount(stateManager.getState().daiToDraw)
-			schedule(1000, this.pollDaiProceeds)
-			const estimatedPriceOfEthInDai = stateManager.getState().daiToDraw / daiProceeds
-			stateManager.update({ estimatedPriceOfEthInDai: estimatedPriceOfEthInDai })
 			// intentionally not awaited to avoid stack overflow
+			schedule(1000, this.pollDaiProceeds)
+			const estimatedPriceOfEthInDai = (daiProceeds === 'insufficient depth') ? 'insufficient depth' : stateManager.getState().daiToDraw / daiProceeds
+			stateManager.update({ estimatedPriceOfEthInDai: estimatedPriceOfEthInDai })
 		}
 
 		this.pollOwnedCdps = async () => {
@@ -624,14 +729,14 @@ export class CdpOpener {
 
 		/** @param {State} prevState */
 		this.stateChanged = async (prevState) => {
-			if (stateManager.getState().daiToDraw !== prevState.daiToDraw)
+			if (stateManager.getState().daiToDraw !== prevState.daiToDraw && (!Number.isNaN(stateManager.getState().daiToDraw)))
 				this.updateDaiSaleProceeds(stateManager.getState().daiToDraw).catch(console.error)
 		}
 
 		/** @param {number} daiToDraw */
 		this.updateDaiSaleProceeds = async (daiToDraw) => {
 			const daiSaleProceeds = await oasis.getBuyAmount(daiToDraw);
-			const estimatedPriceOfEthInDai = daiToDraw / daiSaleProceeds
+			const estimatedPriceOfEthInDai = (daiSaleProceeds === 'insufficient depth') ? 'insufficient depth' : stateManager.getState().daiToDraw / daiSaleProceeds
 			stateManager.update({ estimatedPriceOfEthInDai: estimatedPriceOfEthInDai })
 		}
 
