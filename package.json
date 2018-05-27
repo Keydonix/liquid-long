@@ -1,5 +1,6 @@
 {
 	"name": "liquid-long",
+	"description": "Leveraged CDP Creator",
 	"version": "1.0.0",
 	"main": "client/index.html",
 	"scripts": {
@@ -16,6 +17,8 @@
 	},
 	"homepage": "https://github.com/Keydonix/liquid-long#readme",
 	"devDependencies": {
-		"ssri": "6.0.0"
+		"@types/node": "^10.1.2",
+		"ssri": "6.0.0",
+		"typescript": "2.8.3"
 	}
 }

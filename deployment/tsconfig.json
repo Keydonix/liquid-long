@@ -1,0 +1,13 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "es2015",
+		"noImplicitAny": true,
+		"checkJs": true,
+		"allowJs": true,
+		"noEmit": true,
+		"lib": [
+			"es2018",
+		],
+	}
+}

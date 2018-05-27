@@ -1,0 +1,126 @@
+#network-name {
+	color: #333;
+	background-color: #aaa;
+	font-size: larger;
+	padding: 0.5em 0.5em;
+	text-align: center;
+}
+
+
+nav {
+	background-color: #333;
+	margin: 0;
+	overflow: hidden;
+}
+nav * {
+	font-size: 16px
+}
+nav ul {
+	margin: 0;
+	padding: 0;
+}
+nav ul li {
+	display: inline-block;
+	list-style-type: none;
+}
+.nav-text {
+	color: #aaa;
+	background-color: #333;
+	display: block;
+	line-height: 2em;
+	padding: 0.5em 0.5em;
+	text-decoration: none;
+	border: none;
+}
+nav ul li input.active {
+	color: #FF0
+}
+.nav-text:hover {
+	background-color: #666
+}
+nav ul li:last-child {
+	float:right;
+}
+
+
+#root-div {
+	display: flex;
+	justify-content: center;
+}
+
+
+th, td {
+	padding: 10px;
+	border-left: 1px solid #ddd;
+	border-bottom: 1px solid #ddd;
+}
+th:first-child, td:first-child {
+	border-left: none;
+}
+tbody tr:hover {
+	background-color: #cfcfcf;
+}
+
+
+.loading {
+	display: inline-block;
+	overflow: hidden;
+	height: 1.3em;
+	margin-top: -0.3em;
+	line-height: 1.5em;
+	vertical-align: text-bottom;
+}
+.loading::after {
+	display: inline-table;
+	white-space: pre;
+	text-align: left;
+	content: "⠋\A⠙\A⠹\A⠸\A⠼\A⠴\A⠦\A⠧\A⠇\A⠏";
+	animation: spin 1s steps(10) infinite;
+}
+@keyframes spin { to { transform: translateY(-15.0em); } }
+
+
+[data-tip] {
+	position:relative;
+
+}
+[data-tip]:before {
+	content:'';
+	/* hides the tooltip when not hovered */
+	display:none;
+	content:'';
+	border-left: 5px solid transparent;
+	border-right: 5px solid transparent;
+	border-bottom: 5px solid #1a1a1a;
+	position:absolute;
+	top:30px;
+	left:35px;
+	z-index:8;
+	font-size:0;
+	line-height:0;
+	width:0;
+	height:0;
+}
+[data-tip]:after {
+	display:none;
+	content:attr(data-tip);
+	position:absolute;
+	top:35px;
+	left:0px;
+	padding:5px 8px;
+	background:#1a1a1a;
+	color:#fff;
+	z-index:9;
+	font-size: 0.75em;
+	height:18px;
+	line-height:18px;
+	-webkit-border-radius: 3px;
+	-moz-border-radius: 3px;
+	border-radius: 3px;
+	white-space:nowrap;
+	word-wrap:normal;
+}
+[data-tip]:hover:before,
+[data-tip]:hover:after {
+	display:block;
+}

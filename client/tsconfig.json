@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"module": "es6",
+		"target": "es2018",
+		"noImplicitAny": true,
+		"checkJs": true,
+		"allowJs": true,
+		"noEmit": true,
+		"lib": [
+			"es2018",
+			"dom",
+		],
+	}
+}
