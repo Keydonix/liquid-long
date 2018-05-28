@@ -71,7 +71,7 @@ async function schedule(milliseconds, callback) {
 }
 
 /** @param {Networks} networkId */
-function networkIdToEtherscanName(networkId) {
+function networkIdToEtherscanSubdomain(networkId) {
 	switch (networkId) {
 		case '1': return 'www'
 		case '3': return 'ropsten'
@@ -261,6 +261,14 @@ export class State {
 			return Math.max(unconstrained, 1)
 		}
 
+		/** @returns {CDP[]} */
+		function sanitizeCdps() {
+			const cdps = (source.cdps !== undefined && source.cdps !== null) ? source.cdps : []
+			cdps.forEach(Object.freeze)
+			Object.freeze(cdps)
+			return cdps
+		}
+
 		// copy in the source, validating and falling back to defaults as we do
 		this._networkId = sanitizeNetworkId()
 		this._account = sanitizeAccount()
@@ -270,6 +278,7 @@ export class State {
 		this._limitPriceOfEthInDai = sanitizeLimitPriceOfEthInDai(this._priceOfEthInUsd, this._estimatedPriceOfEthInDai)
 		this._leverageMultiplier = sanitizeLeverageMultiplier()
 		this._leverageSizeInEth = sanitizeLeverageSizeInEth()
+		this._cdps = sanitizeCdps()
 
 		/** @param {StateUpdate} stateUpdate */
 		this.update = (stateUpdate) => {
@@ -283,6 +292,7 @@ export class State {
 				limitPriceOfEthInDai: (stateUpdate.limitPriceOfEthInDai !== undefined) ? stateUpdate.limitPriceOfEthInDai : this.limitPriceOfEthInDai,
 				leverageMultiplier: (stateUpdate.leverageMultiplier !== undefined) ? stateUpdate.leverageMultiplier : this.leverageMultiplier,
 				leverageSizeInEth: (stateUpdate.leverageSizeInEth !== undefined) ? stateUpdate.leverageSizeInEth : this.leverageSizeInEth,
+				cdps: (stateUpdate.cdps !== undefined) ? stateUpdate.cdps : this.cdps,
 			})
 		}
 
@@ -296,6 +306,7 @@ export class State {
 				&& this._limitPriceOfEthInDai === other._limitPriceOfEthInDai
 				&& this._leverageMultiplier === other._leverageMultiplier
 				&& this._leverageSizeInEth === other._leverageSizeInEth
+				&& JSON.stringify(this._cdps) === JSON.stringify(other._cdps)
 		}
 
 		// immutability FTW!
@@ -339,6 +350,9 @@ export class State {
 	get exchangeCostInEth() { return this.loanSize - this.proceedsOfDaiSaleInEth }
 	/** @returns {number} */
 	get totalCostInEth() { return this.providerFeeInEth + this.exchangeCostInEth + this.leverageSizeInEth }
+
+	/** @returns {CDP[]} */
+	get cdps() { return this._cdps }
 }
 
 export class StateManager {
@@ -434,10 +448,12 @@ export class Presentor {
 			cdpCreationInitiated: undefined,
 		}
 
+		/** @param {State} state */
+		const numberOfEthDecimals = (state) => (typeof state.priceOfEthInUsd === 'number' && Number.isFinite(state.priceOfEthInUsd)) ? round(Math.log10(state.priceOfEthInUsd), 0) + 1 : 4
+
 		const renderOpen = () => {
-			// FIXME: add a tooltip to estimatedPriceOfEthInDai when it is NaN, "If this spinner doesn't go away after a bit then it may mean there is not enough ETH for sale on OasisDEX to open this CDP"
 			const state = stateManager.getState()
-			const numberOfEthDecimals = (typeof state.priceOfEthInUsd === 'number' && Number.isFinite(state.priceOfEthInUsd)) ? round(Math.log10(state.priceOfEthInUsd), 0) + 1 : 4
+
 
 			this.ethPrice.innerHTML = Number.isFinite(state.priceOfEthInUsd) ? round(state.priceOfEthInUsd, 2).toString(10) : '<span class="loading"></span>'
 			this.estimatedEthPrice.innerHTML = (Number.isFinite(state.estimatedPriceOfEthInDai) && typeof state.estimatedPriceOfEthInDai === 'number')
@@ -449,9 +465,9 @@ export class Presentor {
 			this.limitEthPrice.setAttribute('max', round(state.maxLimitPriceOfEthInDai, 2).toString(10))
 			this.limitEthPrice.setAttribute('placeholder', round((state.estimatedPriceOfEthInDai !== 'insufficient depth') ? state.estimatedPriceOfEthInDai : state.priceOfEthInUsd, 2).toString(10))
 			this.liquidationPrice.innerHTML = Number.isFinite(state.liquidationPriceOfEthInUsd) ? round(state.liquidationPriceOfEthInUsd, 2).toString(10) : '<span class="loading"></span>'
-			this.feeProvider.innerHTML = Number.isFinite(state.providerFeeInEth) ? round(state.providerFeeInEth, numberOfEthDecimals).toString(10) : '<span class="loading"></span>'
-			this.feeExchange.innerHTML = Number.isFinite(state.exchangeCostInEth) ? round(state.exchangeCostInEth, numberOfEthDecimals).toString(10) : '<span class="loading"></span>'
-			this.feeTotal.innerHTML = Number.isFinite(state.totalCostInEth) ? round(state.totalCostInEth, numberOfEthDecimals).toString(10) : '<span class="loading"></span>'
+			this.feeProvider.innerHTML = Number.isFinite(state.providerFeeInEth) ? round(state.providerFeeInEth, numberOfEthDecimals(state)).toString(10) : '<span class="loading"></span>'
+			this.feeExchange.innerHTML = Number.isFinite(state.exchangeCostInEth) ? round(state.exchangeCostInEth, numberOfEthDecimals(state)).toString(10) : '<span class="loading"></span>'
+			this.feeTotal.innerHTML = Number.isFinite(state.totalCostInEth) ? round(state.totalCostInEth, numberOfEthDecimals(state)).toString(10) : '<span class="loading"></span>'
 
 			// update input boxes (for clamping/defaulting) _unless_ they have focus (don't mess with them while user is editing)
 			if (this.limitEthPrice !== document.activeElement) this.limitEthPrice.value = round(state.limitPriceOfEthInDai, 2).toString(10)
@@ -460,7 +476,24 @@ export class Presentor {
 		}
 
 		const renderClose = () => {
-			// TODO
+			const state = stateManager.getState()
+
+			this.myCdpsTable.innerHTML = ""
+
+			for (let cdp of state.cdps) {
+				const cdpRow = document.importNode(this.myCdpRowTemplate.content, true)
+				const columns = cdpRow.querySelectorAll('td')
+				columns[0].textContent = cdp.id.toString(10)
+				columns[1].textContent = round(cdp.lockedEth, numberOfEthDecimals(state)).toString(10)
+				columns[2].textContent = round(cdp.debtInDai, 2).toString(10)
+				columns[3].textContent = round(cdp.ourFee, numberOfEthDecimals(state)).toString(10)
+				columns[4].textContent = round(cdp.exchangeFee, numberOfEthDecimals(state)).toString(10)
+				// FIXME: this currently uses ETH:USD price feed but it should use ETH:DAI market price for each CDP
+				columns[5].textContent = round(cdp.lockedEth - (cdp.debtInDai / state._priceOfEthInUsd)- cdp.ourFee - cdp.exchangeFee, numberOfEthDecimals(state)).toString(10)
+				if (cdp.state !== 'user-controlled') columns[6].querySelectorAll('button').forEach(child => child.setAttribute('disabled', ''), {})
+				if (cdp.state !== 'contract-controlled') columns[7].querySelectorAll('button').forEach(child => child.setAttribute('disabled', ''), {})
+				this.myCdpsTable.appendChild(cdpRow)
+			}
 		}
 
 		/** Turn a state object into a rendered scene.  This function shouldn't be doing any data processing, it should just be displaying current state. */
@@ -487,7 +520,7 @@ export class Presentor {
 				throw new Error(`Unexpected mode: ${state.mode}`)
 			}
 			this.accountLabel.innerText = (state.account !== null) ? `0x${state.account}` : ''
-			this.accountLabel.setAttribute('href', `https://${networkIdToEtherscanName(state.networkId)}.etherscan.io/address/0x${state.account}`)
+			this.accountLabel.setAttribute('href', `https://${networkIdToEtherscanSubdomain(state.networkId)}.etherscan.io/address/0x${state.account}`)
 
 			renderOpen.bind(this)()
 			renderClose.bind(this)()
@@ -538,8 +571,8 @@ export class Presentor {
 	get openCdpNav() { return /** @type {HTMLElement} */ (document.getElementById('open-cdp-nav')) }
 	get closeCdpNav() { return /** @type {HTMLElement} */ (document.getElementById('close-cdp-nav')) }
 	get accountLabel() { return /** @type {HTMLElement} */ (document.getElementById('account-label')) }
+
 	get openCdpForm() { return /** @type {HTMLElement} */ (document.getElementById('open-cdp-form')) }
-	get closeCdpForm() { return /** @type {HTMLElement} */ (document.getElementById('close-cdp-form')) }
 	get ethPrice() { return /** @type {HTMLElement} */ (document.getElementById('eth-price')) }
 	get estimatedEthPrice() { return /** @type {HTMLElement} */ (document.getElementById('estimated-eth-price')) }
 	get limitEthPrice() { return /** @type {HTMLInputElement} */ (document.getElementById('limit-eth-price')) }
@@ -550,6 +583,10 @@ export class Presentor {
 	get feeExchange() { return /** @type {HTMLElement} */ (document.getElementById('fee-exchange')) }
 	get feeTotal() { return /** @type {HTMLElement} */ (document.getElementById('fee-total')) }
 	get createCdpButton() { return /** @type {HTMLElement} */ (document.getElementById('create-cdp-button')) }
+
+	get closeCdpForm() { return /** @type { HTMLFormElement} */ (document.getElementById('close-cdp-form')) }
+	get myCdpRowTemplate() { return /** @type {HTMLTemplateElement} */ (document.getElementById('cdp-row')) }
+	get myCdpsTable() { return /** @type {HTMLTableSectionElement} */ (document.getElementById('my-cdps-table')) }
 }
 
 export class Maker {
@@ -625,14 +662,65 @@ export class Oasis {
 	}
 }
 
+export class LiquidLong {
+	/**
+	 * @param {EthereumClient} ethereumClient
+	 * @param {ContractAddresses} contractAddresses
+	 */
+	constructor(ethereumClient, contractAddresses) {
+		/** @type {CDP[]} */
+		const samples = [
+			{id: 1, debtInDai: 500, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
+			{id: 10, debtInDai: 0, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'contract-controlled'},
+			{id: 53, debtInDai: 1000, lockedEth: 2, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
+			{id: 72, debtInDai: 1000, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
+			{id: 999, debtInDai: 500, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
+			{id: 1248, debtInDai: 750, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
+			{id: 1600, debtInDai: 500, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'contract-controlled'},
+		]
+		const cdpsPerPage = 3
+
+		/**
+		 * @param {string} account
+		 * @param {number} startId
+		 * @returns {Promise<CDP[]>}
+		 */
+		const getCdpsPage = async (account, startId) => {
+			return samples.filter(cdp =>  startId <= cdp.id && cdp.id < startId + cdpsPerPage)
+		}
+
+		/** @returns {Promise<number>} */
+		const getCdpCount = async () => {
+			return 2000
+		}
+
+		/**
+		 * @param {string} account
+		 * @returns {Promise<CDP[]>}
+		 */
+		this.getCdps = async (account) => {
+			const cdpCount = await getCdpCount()
+			/** @type {CDP[]} */
+			let cdps = []
+			for (let i = 0; i <= cdpCount; i += cdpsPerPage) {
+				cdps = cdps.concat(await getCdpsPage(account, i))
+			}
+			return cdps
+		}
+
+		Object.freeze(this)
+	}
+}
+
 export class Poller {
 	/**
 	 * @param {EthereumClient} ethereumClient
 	 * @param {StateManager} stateManager
 	 * @param {Maker} maker
 	 * @param {Oasis} oasis
+	 * @param {LiquidLong} liquidLong
 	 */
-	constructor(ethereumClient, stateManager, maker, oasis) {
+	constructor(ethereumClient, stateManager, maker, oasis, liquidLong) {
 		this.pollNetworkId = async () => {
 			const networkId = await ethereumClient.netVersion()
 			// intentionally not awaited to avoid stack overflow
@@ -678,7 +766,10 @@ export class Poller {
 		}
 
 		this.pollOwnedCdps = async () => {
-			schedule(1000, this.pollOwnedCdps)
+			const account = await ethereumClient.ethCoinbase()
+			const cdps = (account === null) ? [] : await liquidLong.getCdps(account)
+			schedule(10000, this.pollOwnedCdps)
+			stateManager.update({ cdps: cdps })
 		}
 
 		this.onLoad = async () => {
@@ -690,26 +781,6 @@ export class Poller {
 		}
 
 		window.addEventListener('load', () => this.onLoad().catch(console.error), { once: true })
-		Object.freeze(this)
-	}
-}
-
-export class CdpCloser {
-	/**
-	 * @param {StateManager} stateManager
-	 * @param {Presentor} presentor
-	 */
-	constructor(stateManager, presentor) {
-		this.getCdpsForUser = async () => {
-			// TODO: ask our contract for all CDPs owned by the user (paginated request) or previously owned by the user and now owned by our contract
-			// TODO: present CDPs to user
-		}
-
-		this.onLoad = () => {
-			this.getCdpsForUser().catch(console.error)
-		}
-
-		window.addEventListener('load', this.onLoad, { once: true })
 		Object.freeze(this)
 	}
 }
@@ -780,8 +851,8 @@ const contractAddresses = new ContractAddresses(stateManager)
 const presentor = new Presentor(stateManager)
 const maker = new Maker(ethereumClient, contractAddresses)
 const oasis = new Oasis(ethereumClient, contractAddresses)
-const poller = new Poller(ethereumClient, stateManager, maker, oasis)
+const liquidLong = new LiquidLong(ethereumClient, contractAddresses)
+const poller = new Poller(ethereumClient, stateManager, maker, oasis, liquidLong)
 const cdpOpener = new CdpOpener(stateManager, presentor, oasis)
-const cdpCloser = new CdpCloser(stateManager, presentor)
 
 // TODO: add window.onerror handler for presenting uncaught errors to the user (makes troubleshooting/support much easier)
