@@ -44,16 +44,28 @@ type Networks = '1'|'3'|'4'|'42'
 type Modes = 'opening'|'closing'
 type InsufficientDepth = 'insufficient depth'
 
+interface CDP {
+	id: number
+	debtInDai: number
+	lockedEth: number
+	ourFee: number
+	exchangeFee: number
+	state: 'user-controlled'|'contract-controlled'
+}
+
 // null is used to reset a value to its default
 interface StateUpdate {
 	networkId?: Networks | null
 	account?: string | null
 	mode?: Modes | null
+
 	priceOfEthInUsd?: number | null
 	estimatedPriceOfEthInDai?: number | InsufficientDepth | null
 	limitPriceOfEthInDai?: number | null
 	leverageMultiplier?: number | null
 	leverageSizeInEth?: number | null
+
+	cdps?: CDP[] | null
 }
 
 // The following is necessary due to a bug in the TypeScript definition file, can be removed when https://github.com/Keydonix/liquid-long/pull/22 is merged
@@ -85,4 +97,8 @@ interface NumberConstructor {
 	 * @param value A numeric value.
 	 */
 	isSafeInteger(value: any): value is number;
+}
+
+interface NodeListOf<TNode extends Node> extends NodeList {
+	forEach(callback: (currentValue: TNode, currentIndex: number, listObj: NodeListOf<TNode>) => void, thisArg: any): void
 }

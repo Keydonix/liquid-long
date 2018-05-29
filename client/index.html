@@ -6,7 +6,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link href="index.css" rel="stylesheet" type="text/css" integrity="sha384-IWD7iU6LdfgDfxE/K0Q/2yWCWWZqGgmiGEHWrBm6TAS+tMEoqAfDJmI2HRHeM/jq">
-	<script src="index.js" type="module" integrity="sha384-Hew2iW8ZvNMU31iG3c6TOSDPsa3MywI0fyQGaV7Zf455gsbj/5joDMwzWpUl0SNu"></script>
+	<script src="index.js" type="module" integrity="sha384-kKbe6F5eXXwi+WlJOt7Kzrfa86KbvDIMHq9hkLKRE1Mj8JtZSQ8PYPWCCKXoYMbA"></script>
 </head>
 
 <body>
@@ -66,7 +66,7 @@
 					</td>
 				</tr>
 				<tr>
-					<td style="text-align:right">Our Fee (1% of loan)</td>
+					<td style="text-align:right">Our Fee</td>
 					<td><ins id="fee-provider"><span class="loading"></span></ins> ETH</td>
 				</tr>
 				<tr>
@@ -93,6 +93,7 @@
 						<th rowspan="2">ETH Collateral</th>
 						<th rowspan="2">DAI Debt</th>
 						<th colspan="2">Closing Costs</th>
+						<th rowspan="2">Total Return</th>
 						<th rowspan="2" colspan="2">Close CDP</th>
 					</tr>
 					<tr>
@@ -100,47 +101,28 @@
 						<th>Exchange Cost</th>
 					</tr>
 				</thead>
-				<tbody>
-					<tr>
-						<td>1</td>
-						<td>1</td>
-						<td>250</td>
-						<td>0.01</td>
-						<td>0.05</td>
-						<td>
-							<button>Close (step 1/2)</button>
-						</td>
-						<td></td>
-					</tr>
-					<tr>
-						<td>2</td>
-						<td>1</td>
-						<td>250</td>
-						<td>0.01</td>
-						<td>0.05</td>
-						<td>
-							<button>Cancel Close</button>
-						</td>
-						<td>
-							<button>Close (step 2/2)</button>
-						</td>
-					</tr>
-					<tr>
-						<td>3</td>
-						<td>1</td>
-						<td>250</td>
-						<td>0.01</td>
-						<td>0.05</td>
-						<td>
-							<button>Close (step 1/2)</button>
-						</td>
-						<td></td>
-					</tr>
+				<tbody id="my-cdps-table">
 				</tbody>
 			</table>
 		</form>
 	</div>
 
+<template id="cdp-row">
+	<tr>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td></td>
+		<td>
+			<button>Close (step 1/2)</button>
+		</td>
+		<td>
+			<button>Close (step 2/2)</button>
+		</td>
+	</tr>
+</template>
 </body>
 
 </html>
