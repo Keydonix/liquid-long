@@ -3,9 +3,9 @@
 		"module": "commonjs",
 		"target": "es2015",
 		"noImplicitAny": true,
-		"checkJs": true,
-		"allowJs": true,
+		"allowJs": false,
 		"noEmit": true,
+		"strict": true,
 		"lib": [
 			"es2018",
 		],

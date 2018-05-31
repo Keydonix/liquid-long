@@ -1,0 +1,16 @@
+version: "3"
+services:
+    parity:
+        image: keydonix/parity-instantseal-node8
+        ports:
+            - "8180"
+            - "8545"
+            - "8546"
+    deploy:
+        build: .
+        environment:
+            - ETHEREUM_HTTP=http://parity:8545
+            - ETHEREUM_GAS_PRICE_IN_NANOETH=1
+            - ETHEREUM_PRIVATE_KEY=fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a
+        links:
+            - parity

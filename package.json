@@ -4,7 +4,7 @@
 	"version": "1.0.0",
 	"main": "client/index.html",
 	"scripts": {
-		"integrity": "node deployment/update-integrity.js"
+		"integrity": "ts-node --project deployment/tsconfig.json deployment/scripts/update-integrity.ts"
 	},
 	"repository": {
 		"type": "git",
@@ -18,7 +18,17 @@
 	"homepage": "https://github.com/Keydonix/liquid-long#readme",
 	"devDependencies": {
 		"@types/node": "^10.1.2",
+		"@types/node-fetch": "^2.1.0",
+		"ethers": "^3.0.17",
+		"fs-readfile-promise": "^3.0.1",
+		"node-fetch": "^2.1.2",
+		"recursive-readdir": "^2.2.2",
+		"solc": "^0.4.24",
 		"ssri": "6.0.0",
+		"ts-node": "^6.0.5",
 		"typescript": "2.8.3"
+	},
+	"dependencies": {
+		"@types/fs-readfile-promise": "^3.0.0"
 	}
 }

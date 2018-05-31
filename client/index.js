@@ -368,6 +368,7 @@ export class StateManager {
 		 */
 		this.update = (stateUpdate) => {
 			const newState = state.update(stateUpdate)
+			// FIXME: If the user input a value into a constrained input box, it may be constrained in a way that causes it to not update
 			if (state.equals(newState)) return false
 			const prevState = state
 			state = newState

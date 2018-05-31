@@ -1,14 +1,10 @@
-const ssri = require('ssri')
-const fs = require('fs')
-const path = require('path')
+import ssri = require('ssri')
+import fs = require('fs')
+import path = require('path')
 
-/**
- * @param {string} path
- * @param {{ encoding?: string | null; flag?: string; } | string | undefined | null} options
- */
-async function readFile(path, options) {
-	return new Promise((resolve, reject) => {
-		fs.readFile(path, options, (error, result) => {
+async function readFile(path: string, options: { encoding: string; flag?: string; } | string): Promise<string> {
+	return new Promise<string>((resolve, reject) => {
+		fs.readFile(path, options, (error: NodeJS.ErrnoException, result: string) => {
 			if (error && !result) {
 				reject(error)
 			} else if (result && !error) {
@@ -20,14 +16,9 @@ async function readFile(path, options) {
 	})
 }
 
-/**
- * @param {string} path
- * @param {any} contents
- * @param {{ encoding?: string | null; mode?: number | string; flag?: string; } | string | undefined | null} options
- */
-async function writeFile(path, contents, options) {
-	return new Promise((resolve, reject) => {
-		fs.writeFile(path, contents, options, (error) => {
+async function writeFile(path: string, contents: any, options: { encoding?: string | null; mode?: number | string; flag?: string; } | string | undefined | null): Promise<void> {
+	return new Promise<void>((resolve, reject) => {
+		fs.writeFile(path, contents, options, (error: any) => {
 			if (error) {
 				reject(error)
 			} else {
@@ -38,9 +29,9 @@ async function writeFile(path, contents, options) {
 }
 
 async function updateIntegrityHash() {
-	const cssFilePath = path.join(__dirname, '../client/index.css')
-	const jsFilePath = path.join(__dirname, '../client/index.js')
-	const htmlFilePath = path.join(__dirname, '../client/index.html')
+	const cssFilePath = path.join(__dirname, '../../client/index.css')
+	const jsFilePath = path.join(__dirname, '../../client/index.js')
+	const htmlFilePath = path.join(__dirname, '../../client/index.html')
 
 	// calculate the integrity hash for the javascript and css files
 	const cssIntegrity = await ssri.fromStream(fs.createReadStream(cssFilePath, 'utf8'), { algorithms: ['sha384'], strict: true, single: true })
