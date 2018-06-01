@@ -22,9 +22,13 @@ export class ContractDeployer {
 		this.gasPrice = gasPriceInNanoeth * 10**9
 	}
 
-	public async deploy(oasisAddress: Address, makerAddress: Address) {
+	public async deploy(oasisAddress: Address, makerAddress: Address): Promise<Address> {
 		const transactionToDeploy = Contract.getDeployTransaction(this.bytecode.toHexStringWithPrefix(), JSON.stringify(this.abi), oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix())
 		transactionToDeploy.gasPrice = utils.bigNumberify(this.gasPrice)
 		const transaction = await this.wallet.sendTransaction(transactionToDeploy)
+		if (transaction === undefined) throw new Error(`deployment transaction failed:\n${transactionToDeploy}`)
+		const transactionReceipt = await this.provider.getTransactionReceipt(transaction.hash!)
+		if (transactionReceipt.contractAddress === null) throw new Error('Transaction receipt has no contractAddress')
+		return Address.fromHexString(transactionReceipt.contractAddress)
 	}
 }

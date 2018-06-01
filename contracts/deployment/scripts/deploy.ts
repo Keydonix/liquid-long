@@ -20,17 +20,19 @@ async function spinUntilConnected(jsonRpcAddress: string) {
 	}
 }
 
+function getEnv(name: string): string {
+	const value = process.env[name]
+	if (value === undefined) throw new Error(`${name} environment variable required`)
+	return value
+}
+
 async function doStuff() {
-	const jsonRpcAddress = process.env.ETHEREUM_HTTP
-	if (jsonRpcAddress === undefined) throw new Error('ETHEREUM_HTTP environment variable required')
-	const gasPriceInNanoethString = process.env.ETHEREUM_GAS_PRICE_IN_NANOETH
-	if (gasPriceInNanoethString === undefined) throw new Error('ETHEREUM_GAS_PRICE_IN_NANOETH environment variable required')
-	const gasPriceInNanoeth = parseInt(gasPriceInNanoethString, 10)
-	const privateKeyString = process.env.ETHEREUM_PRIVATE_KEY
-	if (privateKeyString === undefined) throw new Error('ETHEREUM_PRIVATE_KEY environment variable required')
-	const privateKey = PrivateKey.fromHexString(privateKeyString)
-	const oasisAddress = Address.fromHexString('0000000000000000000000000000000000000000')
-	const makerAddress = Address.fromHexString('0000000000000000000000000000000000000000')
+	// gather/validate inputs
+	const jsonRpcAddress = getEnv('ETHEREUM_HTTP')
+	const gasPriceInNanoeth = parseInt(getEnv('ETHEREUM_GAS_PRICE_IN_NANOETH'), 10)
+	const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY'))
+	const oasisAddress = Address.fromHexString(getEnv('ETHEREUM_OASIS_ADDRESS'))
+	const makerAddress = Address.fromHexString(getEnv('ETHEREUM_MAKER_ADRESS'))
 
 	console.log('compiling contracts...')
 	const contractCompiler = new ContractCompiler()
@@ -42,7 +44,8 @@ async function doStuff() {
 
 	console.log('deploying contracts...')
 	const contractDeployer = new ContractDeployer(jsonRpcAddress, gasPriceInNanoeth, privateKey, abi, bytecode)
-	await contractDeployer.deploy(oasisAddress, makerAddress)
+	const liquidLongContractAddress = await contractDeployer.deploy(oasisAddress, makerAddress)
+	console.log(`LiquidLong deployed to ${liquidLongContractAddress.toHexString()}`)
 }
 
 doStuff().then(() => {

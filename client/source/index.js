@@ -77,6 +77,7 @@ function networkIdToEtherscanSubdomain(networkId) {
 		case '3': return 'ropsten'
 		case '4': return 'rinkeby'
 		case '42': return 'kovan'
+		case '17': return 'instantseal'
 		default: throw new Error(`Unknown network ID: ${networkId}`)
 	}
 }
@@ -192,6 +193,7 @@ export class State {
 				case '3':
 				case '4':
 				case '42':
+				case '17':
 					return source.networkId
 				default:
 					return '1'
@@ -406,6 +408,9 @@ export class ContractAddresses {
 			'1': '89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
 			'42': 'c4375b7de8af5a38a93548eb8453a498222c4ff2',
 		}
+		const liquidLongAddresses = {
+			'17': 'FCaf25bF38E7C86612a25ff18CB8e09aB07c9885'
+		}
 
 		this.getWethAddress = () => {
 			const networkId = stateManager.getState().networkId
@@ -430,6 +435,12 @@ export class ContractAddresses {
 			const tubAddress = tubAddresses[networkId]
 			if (tubAddress === undefined) throw new Error(`TUB address for network ${networkId} not available.`)
 			return tubAddress
+		}
+		this.getLiquidLongAddress = () => {
+			const networkId = stateManager.getState().networkId
+			const liquidLongAddress = liquidLongAddresses[networkId]
+			if (liquidLongAddress === undefined) throw new Error(`LiquidLong address for network ${networkId} not available.`)
+			return liquidLongAddress
 		}
 	}
 }
@@ -506,6 +517,7 @@ export class Presentor {
 				: (state.networkId === '3') ? '<span data-tip="Unsupported Network" style="color: darkred">Ropsten</span>'
 				: (state.networkId === '4') ? '<span data-tip="Unsupported Network" style="color: darkred">Rinkeby</span>'
 				: (state.networkId === '42') ? 'Kovan'
+				: (state.networkId === '17') ? 'InstantSeal'
 				: '<span class="loading"></span>'}`
 			if (state.mode === 'opening') {
 				this.openCdpNav.classList.add('active')
@@ -726,7 +738,7 @@ export class Poller {
 			const networkId = await ethereumClient.netVersion()
 			// intentionally not awaited to avoid stack overflow
 			schedule(1000, this.pollNetworkId)
-			if (networkId !== '1' && networkId !== '3' && networkId !== '4' && networkId !== '42') throw new Error(`Unsupported network ${networkId}`)
+			if (networkId !== '1' && networkId !== '3' && networkId !== '4' && networkId !== '42' && networkId !== '17') throw new Error(`Unsupported network ${networkId}`)
 			if (networkId === stateManager.getState().networkId) return
 			// we need to reset any data fetched from the blockchain if the network changes
 			stateManager.update({
