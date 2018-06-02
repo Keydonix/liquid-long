@@ -10,15 +10,16 @@ export class ContractCompiler {
 		const compilerInputJson = await this.generateCompilerInput()
 		const compilerOutputJson = compileStandardWrapper(JSON.stringify(compilerInputJson))
 		const compilerOutput: CompilerOutput = JSON.parse(compilerOutputJson);
-		if (compilerOutput.errors) {
-			let errors = "";
+		const errors = (compilerOutput.errors || []).filter(error => !/Experimental features are turned on\. Do not use experimental features on live deployments\./.test(error.message))
+		if (errors) {
+			let concatenatedErrors = "";
 
-			for (let error of compilerOutput.errors) {
-				errors += error.formattedMessage + "\n";
+			for (let error of errors) {
+				concatenatedErrors += error.formattedMessage + "\n";
 			}
 
-			if (errors.length > 0) {
-				throw new Error("The following errors/warnings were returned by solc:\n\n" + errors);
+			if (concatenatedErrors.length > 0) {
+				throw new Error("The following errors/warnings were returned by solc:\n\n" + concatenatedErrors);
 			}
 		}
 

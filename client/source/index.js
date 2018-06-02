@@ -56,6 +56,67 @@ function abiEncodeNumber(value) {
 	return leftPad64Zeros(value.toString(16))
 }
 
+/** @param {string} value */
+function abiDecodeBoolean(value) {
+	if (!/^[a-fA-F0-9]{64}$/.test(value)) throw new Error(`Expected 64 character string of hex digits, received ${value}.`)
+	if (value === '0000000000000000000000000000000000000000000000000000000000000000') return false
+	if (value === '0000000000000000000000000000000000000000000000000000000000000001') return true
+	throw new Error(`Expected a hex encoded boolean but received ${value}`)
+}
+
+/** @param {string} value */
+function abiDecodeNumber(value) {
+	if (!/^[a-fA-F0-9]{64}$/.test(value)) throw new Error(`Expected 64 character string of hex digits, received ${value}.`)
+	return parseInt(value, 16)
+}
+
+/**
+ * @param {string} encodedCdp
+ * @returns {CDP}
+ */
+function decodeCdp(encodedCdp) {
+	if (!/^(?:[a-fA-F0-9]{64}){6}$/.test(encodedCdp)) throw new Error(`Expected 384 hex digits but got ${encodedCdp}`)
+	const id = abiDecodeNumber(encodedCdp.substr(0, 64))
+	const debtInAttodai = abiDecodeNumber(encodedCdp.substr(64, 64))
+	const lockedAttoeth = abiDecodeNumber(encodedCdp.substr(128, 64))
+	const feeInAttoeth = abiDecodeNumber(encodedCdp.substr(192, 64))
+	const exchangeCostInAttoeth = abiDecodeNumber(encodedCdp.substr(256, 64))
+	const userOwned = abiDecodeBoolean(encodedCdp.substr(320, 64))
+	return {
+		id: id,
+		debtInDai: debtInAttodai / 10**18,
+		lockedEth: lockedAttoeth / 10**18,
+		ourFee: feeInAttoeth / 10**18,
+		exchangeFee: exchangeCostInAttoeth / 10**18,
+		state: userOwned ? 'user-controlled' : 'contract-controlled',
+	}
+}
+
+/**
+ * @param {string} encodedCdpArray
+ * @returns {CDP[]}
+ */
+function decodeCdpArray(encodedCdpArray) {
+	if (!/^([a-fA-F0-9]{64})*$/.test(encodedCdpArray)) throw new Error(`Expected a string with length a multiple of 64 and only containing hex digits.`)
+	const twoZero = encodedCdpArray.substr(0, 64)
+	// TODO: figure out what this first value actually is, appears to always be 0x20
+	if (twoZero !== '0000000000000000000000000000000000000000000000000000000000000020') throw new Error(`First value wasn't expected 0x20`)
+	const length = parseInt(encodedCdpArray.substr(64, 64), 16)
+	const arrayHeaderSize = 128
+	const cdpElementCount = 6
+	const cdpStructSize = cdpElementCount * 64
+	const expectedEncodedLength = arrayHeaderSize + length * cdpStructSize
+	if (encodedCdpArray.length !== expectedEncodedLength) throw new Error(`Expected a string of length ${expectedEncodedLength} but received a string of length ${encodedCdpArray.length}`)
+	/** @type {CDP[]} */
+	const result = []
+	for (let i = 0; i < length; ++i) {
+		const encodedCdp = encodedCdpArray.substr(arrayHeaderSize + i * cdpStructSize, cdpStructSize)
+		const cdp = decodeCdp(encodedCdp)
+		result.push(cdp)
+	}
+	return result
+}
+
 /** @param {number} milliseconds */
 async function sleep(milliseconds) {
 	return new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -84,6 +145,13 @@ function networkIdToEtherscanSubdomain(networkId) {
 
 export class EthereumClient {
 	constructor() {
+		function getEthereumNodeAddress() {
+			const params = new URLSearchParams(document.location.search.substring(1))
+			let address = params.get('ethereum_node_address')
+			if (address === null) address = 'http://parity.zoltu.com:8545'
+			return address
+		}
+
 		/** @param {JsonRpcRequest} jsonRpc */
 		async function sendAsyncWeb3(jsonRpc) {
 			assert(window.web3 !== undefined, `web3.currentProvider is undefined`)
@@ -105,7 +173,7 @@ export class EthereumClient {
 
 		/** @param {JsonRpcRequest} jsonRpc */
 		async function sendAsyncHosted(jsonRpc) {
-			const response = await fetch('http://parity.zoltu.com:8545', {
+			const response = await fetch(getEthereumNodeAddress(), {
 				method: 'POST',
 				headers: new Headers({
 					'Content-Type': 'application/json',
@@ -392,50 +460,10 @@ export class ContractAddresses {
 	 * @param {StateManager} stateManager
 	 */
 	constructor(stateManager) {
-		const tubAddresses = {
-			'1': '448a5065aebb8e423f0896e6c5d525c040f59af3',
-			'42': 'a71937147b55deb8a530c7229c442fd3f31b7db2',
-		}
-		const oasisAddresses = {
-			'1': '14fbca95be7e99c15cc2996c6c9d841e54b79425',
-			'42': '8cf1Cab422A0b6b554077A361f8419cDf122a9F9',
-		}
-		const wethAddresses = {
-			'1': 'c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
-			'42': 'd0a1e359811322d97991e03f863a0c30c2cf029c',
-		}
-		const daiAddresses = {
-			'1': '89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
-			'42': 'c4375b7de8af5a38a93548eb8453a498222c4ff2',
-		}
 		const liquidLongAddresses = {
 			'17': 'FCaf25bF38E7C86612a25ff18CB8e09aB07c9885'
 		}
 
-		this.getWethAddress = () => {
-			const networkId = stateManager.getState().networkId
-			const wethAddress = wethAddresses[networkId]
-			if (wethAddress === undefined) throw new Error(`WETH address for network ${networkId} not available.`)
-			return wethAddress
-		}
-		this.getDaiAddress = () => {
-			const networkId = stateManager.getState().networkId
-			const daiAddress = daiAddresses[networkId]
-			if (daiAddress === undefined) throw new Error(`DAI address for network ${networkId} not available.`)
-			return daiAddress
-		}
-		this.getOasisAddress = () => {
-			const networkId = stateManager.getState().networkId
-			const oasisAddress = oasisAddresses[networkId]
-			if (oasisAddress === undefined) throw new Error(`Oasis address for network ${networkId} not available.`)
-			return oasisAddress
-		}
-		this.getTubAddress = () => {
-			const networkId = stateManager.getState().networkId
-			const tubAddress = tubAddresses[networkId]
-			if (tubAddress === undefined) throw new Error(`TUB address for network ${networkId} not available.`)
-			return tubAddress
-		}
 		this.getLiquidLongAddress = () => {
 			const networkId = stateManager.getState().networkId
 			const liquidLongAddress = liquidLongAddresses[networkId]
@@ -602,96 +630,13 @@ export class Presentor {
 	get myCdpsTable() { return /** @type {HTMLTableSectionElement} */ (document.getElementById('my-cdps-table')) }
 }
 
-export class Maker {
-	/**
-	 * @param {EthereumClient} ethereumClient
-	 * @param {ContractAddresses} contractAddresses
-	 */
-	constructor(ethereumClient, contractAddresses) {
-		this.getEthUsdPrice = async () => {
-			// TODO: add some kind of caching for medianizer address so we aren't hitting the local node so hard every time we access the price feed
-			const getMedianizerAddress = async () => {
-				// address public pip;
-				const pipSignatureHash = 'd741e2f9'
-				const transaction = {
-					to: `0x${contractAddresses.getTubAddress()}`,
-					data: `0x${pipSignatureHash}`
-				}
-				const result = await ethereumClient.ethCall(transaction)
-				const address = result.substr(-40)
-				assertIsAddress(address)
-				return address
-			}
-
-			/** @param {string} medianizerAddress */
-			const readPriceFeed = async (medianizerAddress) => {
-				// function read() constant returns (bytes32) {}
-				const readSignatureHash = '57de26a4'
-				const transaction = {
-					to: `0x${medianizerAddress}`,
-					data: `0x${readSignatureHash}`
-				}
-				const stringResult = await ethereumClient.ethCall(transaction)
-				assertIsHexEncodedNumber(stringResult)
-				// stringResult is a number in the range [0.00, 1,000,000,000,000.00] * 10^18. This means the number will be precise within a double before the division, and the division will remain precise.  Also, if we are off by a tiny amount we don't actually care.
-				return parseInt(stringResult, 16) / 10 ** 18
-			}
-
-			return await readPriceFeed(await getMedianizerAddress())
-		}
-
-		Object.freeze(this)
-	}
-}
-
-export class Oasis {
-	/**
-	 * @param {EthereumClient} ethereumClient
-	 * @param {ContractAddresses} contractAddresses
-	 */
-	constructor(ethereumClient, contractAddresses) {
-		/** @param {number} daiToDraw */
-		this.getBuyAmount = async (daiToDraw) => {
-			// function getBuyAmount(address, address, uint256) {}
-			const getBuyAmountSignatureHash = '144a2752'
-			// rounding of daiToDraw is fine because all of this is used for giving the user an estimate, not an exact number
-			const attodaiToDraw = abiEncodeNumber(daiToDraw * 10 ** 18)
-			const transaction = {
-				to: `0x${contractAddresses.getOasisAddress()}`,
-				data: `0x${getBuyAmountSignatureHash}${leftPad64Zeros(contractAddresses.getWethAddress())}${leftPad64Zeros(contractAddresses.getDaiAddress())}${attodaiToDraw}`,
-			}
-			try {
-				const stringResult = await ethereumClient.ethCall(transaction)
-				assertIsHexEncodedNumber(stringResult)
-				// stringResult could be a number that doesn't fit into a double, but the UI doesn't care about losing some precision since we are using this to give the user a recommendation for what they will end up paying, and we are truncating to 2 decimals in the UI anyway
-				return parseInt(stringResult, 16) / 10 ** 18
-			} catch (error) {
-				// this happens if the orderbook doesn't have enough depth to liquidate all of the DAI
-				return 'insufficient depth'
-			}
-		}
-
-		Object.freeze(this)
-	}
-}
-
 export class LiquidLong {
 	/**
 	 * @param {EthereumClient} ethereumClient
 	 * @param {ContractAddresses} contractAddresses
 	 */
 	constructor(ethereumClient, contractAddresses) {
-		/** @type {CDP[]} */
-		const samples = [
-			{id: 1, debtInDai: 500, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
-			{id: 10, debtInDai: 0, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'contract-controlled'},
-			{id: 53, debtInDai: 1000, lockedEth: 2, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
-			{id: 72, debtInDai: 1000, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
-			{id: 999, debtInDai: 500, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
-			{id: 1248, debtInDai: 750, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'user-controlled'},
-			{id: 1600, debtInDai: 500, lockedEth: 1, ourFee: 0.01, exchangeFee: 0.1, state: 'contract-controlled'},
-		]
-		const cdpsPerPage = 3
+		const cdpsPerPage = 100
 
 		/**
 		 * @param {string} account
@@ -699,12 +644,29 @@ export class LiquidLong {
 		 * @returns {Promise<CDP[]>}
 		 */
 		const getCdpsPage = async (account, startId) => {
-			return samples.filter(cdp =>  startId <= cdp.id && cdp.id < startId + cdpsPerPage)
+			assertIsAddress(account)
+			// getCdps(address,uint256,uint256)
+			const getCdpsSignatureHash = '07babd94'
+			const transaction = {
+				to: `0x${contractAddresses.getLiquidLongAddress()}`,
+				data: `0x${getCdpsSignatureHash}${leftPad64Zeros(account)}${abiEncodeNumber(startId)}${abiEncodeNumber(cdpsPerPage)}`
+			}
+			const stringResult = await ethereumClient.ethCall(transaction)
+			return decodeCdpArray(stringResult)
 		}
 
 		/** @returns {Promise<number>} */
 		const getCdpCount = async () => {
-			return 2000
+			// cdpCount()
+			const cdpCountSignatureHash = 'e9e4f5f1'
+			const transaction = {
+				to: `0x${contractAddresses.getLiquidLongAddress()}`,
+				data: `0x${cdpCountSignatureHash}`
+			}
+			const stringResult = await ethereumClient.ethCall(transaction)
+			assertIsHexEncodedNumber(stringResult)
+			// stringResult is expected to be well below 2^52 as it increments by 1 each time a CDP is created by a human
+			return parseInt(stringResult, 16)
 		}
 
 		/**
@@ -721,6 +683,35 @@ export class LiquidLong {
 			return cdps
 		}
 
+		this.ethPriceInUsd = async () => {
+			// ethPriceInUsd()
+			const ethPriceInUsdSignatureHash = '683e0bcd'
+			const transaction = {
+				to: `0x${contractAddresses.getLiquidLongAddress()}`,
+				data: `0x${ethPriceInUsdSignatureHash}`
+			}
+			const stringResult = await ethereumClient.ethCall(transaction)
+			assertIsHexEncodedNumber(stringResult)
+			// stringResult is a number in the range [0.00, 1,000,000,000,000.00] * 10^18. This means the number will be precise within a double before the division, and the division will remain precise.  Also, if we are off by a tiny amount we don't actually care.
+			return parseInt(stringResult, 16) / 10**18
+		}
+
+		/** @param {number} daiToSell */
+		this.estimateDaiSaleProceeds = async (daiToSell) => {
+			// function estimateDaiSaleProceeds(uint256 attodaiToSell) public view returns (uint256 attoeth)
+			const estimateDaiSaleProceedsSignatureHash = '5988899c'
+			const transaction = {
+				to: `0x${contractAddresses.getLiquidLongAddress()}`,
+				data: `0x${estimateDaiSaleProceedsSignatureHash}${abiEncodeNumber(daiToSell * 10**18)}`
+			}
+			const stringResult = await ethereumClient.ethCall(transaction)
+			assertIsHexEncodedNumber(stringResult)
+			// stringResult could be a number that doesn't fit into a double, but the UI doesn't care about losing some precision since we are using this to give the user a recommendation for what they will end up paying, and we are truncating to 2 decimals in the UI anyway
+			const numberResult = parseInt(stringResult, 16)
+			if (numberResult === 0) return 'insufficient depth'
+			else return numberResult / 10**18
+		}
+
 		Object.freeze(this)
 	}
 }
@@ -729,15 +720,13 @@ export class Poller {
 	/**
 	 * @param {EthereumClient} ethereumClient
 	 * @param {StateManager} stateManager
-	 * @param {Maker} maker
-	 * @param {Oasis} oasis
 	 * @param {LiquidLong} liquidLong
 	 */
-	constructor(ethereumClient, stateManager, maker, oasis, liquidLong) {
+	constructor(ethereumClient, stateManager, liquidLong) {
 		this.pollNetworkId = async () => {
 			const networkId = await ethereumClient.netVersion()
 			// intentionally not awaited to avoid stack overflow
-			schedule(1000, this.pollNetworkId)
+			schedule(10000, this.pollNetworkId)
 			if (networkId !== '1' && networkId !== '3' && networkId !== '4' && networkId !== '42' && networkId !== '17') throw new Error(`Unsupported network ${networkId}`)
 			if (networkId === stateManager.getState().networkId) return
 			// we need to reset any data fetched from the blockchain if the network changes
@@ -749,6 +738,7 @@ export class Poller {
 				limitPriceOfEthInDai: null,
 				leverageMultiplier: null,
 				leverageSizeInEth: null,
+				cdps: null,
 			})
 		}
 
@@ -759,21 +749,22 @@ export class Poller {
 			if (coinbase === stateManager.getState().account) return
 			// we need to reset any data that is account specific when the account changes
 			stateManager.update({
-				account: coinbase
+				account: coinbase,
+				cdps: null,
 			})
 		}
 
 		this.pollEthPrice = async () => {
-			const priceOfEthInUsd = await maker.getEthUsdPrice()
+			const priceOfEthInUsd = await liquidLong.ethPriceInUsd()
 			// intentionally not awaited to avoid stack overflow
-			schedule(1000, this.pollEthPrice)
+			schedule(10000, this.pollEthPrice)
 			stateManager.update({ priceOfEthInUsd: priceOfEthInUsd })
 		}
 
 		this.pollDaiProceeds = async () => {
-			const daiProceeds = await oasis.getBuyAmount(stateManager.getState().daiToDraw)
+			const daiProceeds = await liquidLong.estimateDaiSaleProceeds(stateManager.getState().daiToDraw)
 			// intentionally not awaited to avoid stack overflow
-			schedule(1000, this.pollDaiProceeds)
+			schedule(10000, this.pollDaiProceeds)
 			const estimatedPriceOfEthInDai = (daiProceeds === 'insufficient depth') ? 'insufficient depth' : stateManager.getState().daiToDraw / daiProceeds
 			stateManager.update({ estimatedPriceOfEthInDai: estimatedPriceOfEthInDai })
 		}
@@ -802,9 +793,9 @@ export class CdpOpener {
 	/**
 	 * @param {StateManager} stateManager
 	 * @param {Presentor} presentor
-	 * @param {Oasis} oasis
+	 * @param {LiquidLong} liquidLong
 	 */
-	constructor(stateManager, presentor, oasis) {
+	constructor(stateManager, presentor, liquidLong) {
 		this.createCdp = () => {
 			// TODO: validate all values
 			// TODO: beware of onblur event firing after the onclick event causing submission with stale values!
@@ -819,7 +810,7 @@ export class CdpOpener {
 
 		/** @param {number} daiToDraw */
 		this.updateDaiSaleProceeds = async (daiToDraw) => {
-			const daiSaleProceeds = await oasis.getBuyAmount(daiToDraw);
+			const daiSaleProceeds = await liquidLong.estimateDaiSaleProceeds(daiToDraw);
 			const estimatedPriceOfEthInDai = (daiSaleProceeds === 'insufficient depth') ? 'insufficient depth' : stateManager.getState().daiToDraw / daiSaleProceeds
 			stateManager.update({ estimatedPriceOfEthInDai: estimatedPriceOfEthInDai })
 		}
@@ -862,10 +853,8 @@ const ethereumClient = new EthereumClient()
 const stateManager = new StateManager(new State({}))
 const contractAddresses = new ContractAddresses(stateManager)
 const presentor = new Presentor(stateManager)
-const maker = new Maker(ethereumClient, contractAddresses)
-const oasis = new Oasis(ethereumClient, contractAddresses)
 const liquidLong = new LiquidLong(ethereumClient, contractAddresses)
-const poller = new Poller(ethereumClient, stateManager, maker, oasis, liquidLong)
-const cdpOpener = new CdpOpener(stateManager, presentor, oasis)
+const poller = new Poller(ethereumClient, stateManager, liquidLong)
+const cdpOpener = new CdpOpener(stateManager, presentor, liquidLong)
 
 // TODO: add window.onerror handler for presenting uncaught errors to the user (makes troubleshooting/support much easier)

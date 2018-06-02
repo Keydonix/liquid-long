@@ -11,4 +11,7 @@ export class Address extends ByteArray {
 		if (match === null) throw new Error(`${input} must be a 40 character hex string optionally prefixed with 0x`)
 		return new Address(utils.arrayify(`0x${match[1]}`))
 	}
+	static zero() {
+		return new Address(new Uint8Array(20))
+	}
 }
