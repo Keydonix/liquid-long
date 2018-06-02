@@ -40,7 +40,7 @@ interface Window {
 	web3: Web3
 }
 
-type Networks = '1'|'3'|'4'|'42'
+type Networks = '1'|'3'|'4'|'42'|'17'
 type Modes = 'opening'|'closing'
 type InsufficientDepth = 'insufficient depth'
 

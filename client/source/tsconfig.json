@@ -7,9 +7,6 @@
 		"allowJs": true,
 		"noEmit": true,
 		"strict": true,
-		"lib": [
-			"es2018",
-			"dom",
-		],
+		"lib": [ "es2018", "dom", ],
 	}
 }

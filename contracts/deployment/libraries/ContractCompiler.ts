@@ -26,7 +26,7 @@ export class ContractCompiler {
 	}
 
 	public async generateCompilerInput(): Promise<CompilerInput> {
-		const sourceRoot = path.join(__dirname, '../../contracts/')
+		const sourceRoot = path.join(__dirname, '../../source/')
 		const filePaths = await recursiveReadDir(sourceRoot)
 		const filesPromises = filePaths.map(async filePath => (await readFile(filePath)).toString('utf8'))
 		const files = await Promise.all(filesPromises)

@@ -1,0 +1,17 @@
+{
+	"description": "N/A",
+	"repository": {},
+	"license": "Unlicense",
+	"devDependencies": {
+		"@types/fs-readfile-promise": "3.0.0",
+		"@types/node": "10.1.2",
+		"@types/node-fetch": "2.1.0",
+		"ethers": "3.0.17",
+		"fs-readfile-promise": "3.0.1",
+		"node-fetch": "2.1.2",
+		"recursive-readdir": "2.2.2",
+		"solc": "0.4.24",
+		"ts-node": "6.0.5",
+		"typescript": "2.8.3"
+	}
+}

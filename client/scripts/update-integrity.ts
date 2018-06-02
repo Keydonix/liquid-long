@@ -29,9 +29,9 @@ async function writeFile(path: string, contents: any, options: { encoding?: stri
 }
 
 async function updateIntegrityHash() {
-	const cssFilePath = path.join(__dirname, '../../client/index.css')
-	const jsFilePath = path.join(__dirname, '../../client/index.js')
-	const htmlFilePath = path.join(__dirname, '../../client/index.html')
+	const cssFilePath = path.join(__dirname, '../source/index.css')
+	const jsFilePath = path.join(__dirname, '../source/index.js')
+	const htmlFilePath = path.join(__dirname, '../source/index.html')
 
 	// calculate the integrity hash for the javascript and css files
 	const cssIntegrity = await ssri.fromStream(fs.createReadStream(cssFilePath, 'utf8'), { algorithms: ['sha384'], strict: true, single: true })

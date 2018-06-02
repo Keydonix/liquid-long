@@ -1,27 +1,4 @@
 
-declare module 'ssri' {
-	import { ReadStream } from 'fs'
-	type Algorithm = 'sha256' | 'sha384' | 'sha512'
-	export interface Hash {
-		algorithm: Algorithm
-		digest: string
-		options: any[]
-		toString: () => string
-	}
-	export interface Integrity {
-		sha256: Hash
-		sha384: Hash
-		sha512: Hash
-		toString: () => string
-	}
-	export interface Options {
-		single: boolean
-		strict: boolean
-		algorithms: Algorithm[]
-	}
-	export function fromStream(stream: ReadStream, options: Options): Promise<Integrity | Hash>
-}
-
 declare module 'ethereum' {
 	export type Primitive = 'uint8' | 'uint64' | 'uint256' | 'bool' | 'string' | 'address' | 'bytes20' | 'bytes32' | 'bytes' | 'int256' | 'address[]' | 'uint256[]' | 'bytes32[]';
 
@@ -276,7 +253,7 @@ declare module 'ethers' {
 			estimateGas(transaction: Transaction): Promise<utils.BigNumber>
 			getBlock(blockHashOrBlockTag: string): Promise<any>
 			getTransaction(transactionHash: string): Promise<Transaction>
-			getTransactionReceipt(transactionHash: string): Promise<any>
+			getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt>
 			getLogs(filter: any): Promise<string[]>
 			getEtherPrice(): Promise<number>
 			resolveName(name: string): Promise<string>
@@ -335,6 +312,20 @@ declare module 'ethers' {
 		gasPrice: utils.BigNumber
 		gasLimit: utils.BigNumber
 		value: utils.BigNumber
+	}
+
+	export type TransactionReceipt = {
+		contractAddress: string | null
+		transactionIndex: number
+		gasUsed: utils.BigNumber
+		logsBloom: string
+		blockHash: string
+		transactionHash: string
+		logs: Array<any>
+		blockNumber: number
+		cumulativeGasUsed: utils.BigNumber
+		status: number
+		byzantium: boolean
 	}
 
 	namespace utils {
