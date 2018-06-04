@@ -7,17 +7,29 @@
 		{
 			"type": "node",
 			"request": "launch",
-			"name": "Launch Program",
+			"name": "Deploy",
+			"cwd": "${workspaceFolder}/contracts",
 			"runtimeArgs": [ "-r", "ts-node/register", ],
 			"args": [ "${workspaceFolder}/contracts/deployment/scripts/deploy.ts", ],
 			"env": {
-				"TS_NODE_PROJECT": "contracts/deployment/tsconfig.json",
-				"ETHEREUM_HTTP": "http://localhost:8545",
+				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/deployment/tsconfig.json",
+				"ETHEREUM_HTTP": "http://localhost:1235",
 				"ETHEREUM_GAS_PRICE_IN_NANOETH": "1",
 				"ETHEREUM_PRIVATE_KEY": "fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a",
 				"ETHEREUM_OASIS_ADDRESS": "0000000000000000000000000000000000000000",
 				"ETHEREUM_MAKER_ADRESS": "0000000000000000000000000000000000000000",
 			},
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Compile",
+			"cwd": "${workspaceFolder}/contracts",
+			"runtimeArgs": [ "-r", "ts-node/register", ],
+			"args": [ "${workspaceFolder}/contracts/deployment/scripts/compile.ts", ],
+			"env": {
+				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/deployment/tsconfig.json",
+			}
 		}
 	]
 }

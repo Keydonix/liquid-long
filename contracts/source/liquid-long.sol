@@ -1,4 +1,5 @@
 pragma solidity 0.4.24;
+pragma experimental ABIEncoderV2;
 
 /**
  * @title ERC20Basic
@@ -192,17 +193,67 @@ contract Maker {
 }
 
 contract LiquidLong is Ownable, Claimable, Pausable {
-	Oasis oasis;
-	Maker maker;
-	Dai dai;
-	Weth weth;
-	Mkr mkr;
+	Oasis public oasis;
+	Maker public maker;
+	Dai private dai;
+	Weth private weth;
+	Mkr private mkr;
+
+	struct CDP {
+		uint256 id;
+		uint256 debtInAttodai;
+		uint256 lockedAttoeth;
+		uint256 feeInAttoeth;
+		uint256 exchangeCostInAttoeth;
+		bool userOwned;
+	}
+
+	CDP[] private cdps;
 
 	constructor(Oasis _oasis, Maker _maker) public {
 		oasis = _oasis;
 		maker = _maker;
-		dai = maker.sai();
-		weth = maker.gem();
-		mkr = maker.gov();
+		// dai = maker.sai();
+		// weth = maker.gem();
+		// mkr = maker.gov();
+
+		cdps.push(CDP({id: 1, debtInAttodai: 500 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
+		cdps.push(CDP({id: 10, debtInAttodai: 0 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: false}));
+		cdps.push(CDP({id: 53, debtInAttodai: 1000 * 10**18, lockedAttoeth: 2 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
+		cdps.push(CDP({id: 72, debtInAttodai: 1000 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
+		cdps.push(CDP({id: 999, debtInAttodai: 500 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
+		cdps.push(CDP({id: 1248, debtInAttodai: 750 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
+		cdps.push(CDP({id: 1600, debtInAttodai: 500 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: false}));
+	}
+
+	function ethPriceInUsd() public pure returns (uint256 _attousd) {
+		return 500 * 10**18;
+	}
+
+	function estimateDaiSaleProceeds(uint256 _attodaiToSell) public pure returns (uint256 _attoeth) {
+		// TODO: return sentinal value (0) if there isn't enough depth on the books to sell all of the DAI
+		return _attodaiToSell / 510;
+	}
+
+	function getCdps(address /*_user*/, uint256 _offset, uint256 _pageSize) public view returns (CDP[] _cdps) {
+		uint256 _matchCount = 0;
+		for (uint256 _i = 0; _i < cdps.length; ++_i) {
+			if (cdps[_i].id < _offset) continue;
+			if (cdps[_i].id >= _offset + _pageSize) break;
+			++_matchCount;
+		}
+		_cdps = new CDP[](_matchCount);
+		_matchCount = 0;
+		for (_i = 0; _i < cdps.length; ++_i) {
+			if (cdps[_i].id < _offset) continue;
+			if (cdps[_i].id >= _offset + _pageSize) break;
+			_cdps[_matchCount] = cdps[_i];
+			++_matchCount;
+		}
+		return _cdps;
+	}
+
+	function cdpCount() public pure returns (uint256 _cdpCount) {
+		return 2000;
 	}
 }

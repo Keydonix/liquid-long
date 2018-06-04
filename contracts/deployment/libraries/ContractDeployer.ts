@@ -24,11 +24,14 @@ export class ContractDeployer {
 
 	public async deploy(oasisAddress: Address, makerAddress: Address): Promise<Address> {
 		const transactionToDeploy = Contract.getDeployTransaction(this.bytecode.toHexStringWithPrefix(), JSON.stringify(this.abi), oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix())
+		transactionToDeploy.from = this.wallet.address
 		transactionToDeploy.gasPrice = utils.bigNumberify(this.gasPrice)
+		transactionToDeploy.gasLimit = await this.provider.estimateGas(transactionToDeploy)
 		const transaction = await this.wallet.sendTransaction(transactionToDeploy)
 		if (transaction === undefined) throw new Error(`deployment transaction failed:\n${transactionToDeploy}`)
 		const transactionReceipt = await this.provider.getTransactionReceipt(transaction.hash!)
 		if (transactionReceipt.contractAddress === null) throw new Error('Transaction receipt has no contractAddress')
+		if (transactionReceipt.status !== 1) throw new Error(`Contract upload failed with transaction receipt status of ${transactionReceipt.status}`)
 		return Address.fromHexString(transactionReceipt.contractAddress)
 	}
 }
