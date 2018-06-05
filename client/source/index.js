@@ -461,7 +461,7 @@ export class ContractAddresses {
 	 */
 	constructor(stateManager) {
 		const liquidLongAddresses = {
-			'17': 'FCaf25bF38E7C86612a25ff18CB8e09aB07c9885'
+			'17': '204CDD1689C8A4DA426894C150A0FA672A2EAB4C'
 		}
 
 		this.getLiquidLongAddress = () => {
@@ -710,6 +710,15 @@ export class LiquidLong {
 			const numberResult = parseInt(stringResult, 16)
 			if (numberResult === 0) return 'insufficient depth'
 			else return numberResult / 10**18
+		}
+
+		/**
+		 * @param {number} leverageMultiplier
+		 * @param {number} leverageSize
+		 * @param {number} limitPriceOfEthInDai
+		 */
+		this.createCdp = async (leverageMultiplier, leverageSize, limitPriceOfEthInDai) => {
+			// TODO: author and call
 		}
 
 		Object.freeze(this)
