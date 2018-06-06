@@ -1,5 +1,6 @@
 pragma solidity 0.4.24;
 pragma experimental ABIEncoderV2;
+pragma experimental "v0.5.0";
 
 /**
  * @title ERC20Basic
@@ -178,6 +179,7 @@ contract Peth is ERC20 {
 
 contract Oasis {
 	function getBuyAmount(ERC20 tokenToBuy, ERC20 tokenToPay, uint256 amountToPay) external view returns(uint256 amountBought);
+	function getPayAmount(ERC20 tokenToPay, ERC20 tokenToBuy, uint amountToBuy) public constant returns (uint amountPaid);
 }
 
 contract Medianizer {
@@ -190,6 +192,29 @@ contract Maker {
 	function gov() external view returns(Mkr);
 	function skr() external view returns(Peth);
 	function pip() external view returns(Medianizer);
+
+	// Join-Exit Spread
+	 uint256 public gap;
+
+	struct Cup {
+		// CDP owner
+		address  lad;
+		// Locked collateral (in SKR)
+		uint256  ink;
+		// Outstanding normalised debt (tax only)
+		uint256  art;
+		// Outstanding normalised debt
+		uint256  ire;
+	}
+
+	uint256 public cupi;
+	mapping (bytes32 => Cup) public cups;
+
+	function lad(bytes32 cup) public view returns (address);
+	function per() public view returns (uint ray);
+	function tab(bytes32 cup) public returns (uint);
+	function rap(bytes32 cup) public returns (uint);
+	function chi() public returns (uint);
 }
 
 contract LiquidLong is Ownable, Claimable, Pausable {
@@ -208,26 +233,24 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		bool userOwned;
 	}
 
-	CDP[] private cdps;
-
 	constructor(Oasis _oasis, Maker _maker) public {
 		oasis = _oasis;
 		maker = _maker;
-		// dai = maker.sai();
-		// weth = maker.gem();
-		// mkr = maker.gov();
-
-		cdps.push(CDP({id: 1, debtInAttodai: 500 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
-		cdps.push(CDP({id: 10, debtInAttodai: 0 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: false}));
-		cdps.push(CDP({id: 53, debtInAttodai: 1000 * 10**18, lockedAttoeth: 2 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
-		cdps.push(CDP({id: 72, debtInAttodai: 1000 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
-		cdps.push(CDP({id: 999, debtInAttodai: 500 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
-		cdps.push(CDP({id: 1248, debtInAttodai: 750 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: true}));
-		cdps.push(CDP({id: 1600, debtInAttodai: 500 * 10**18, lockedAttoeth: 1 * 10**18, feeInAttoeth: 0.01 * 10**18, exchangeCostInAttoeth: 0.1 * 10**18, userOwned: false}));
+		dai = maker.sai();
+		weth = maker.gem();
+		mkr = maker.gov();
 	}
 
-	function ethPriceInUsd() public pure returns (uint256 _attousd) {
-		return 500 * 10**18;
+	function mul27(uint256 a, uint256 b) private pure returns (uint256) {
+		return (a * b + 5 * 10**26) / 10**27;
+	}
+
+	function mul18(uint256 a, uint256 b) private pure returns (uint256) {
+		return (a * b + 5 * 10**17) / 10**18;
+	}
+
+	function ethPriceInUsd() public view returns (uint256 _attousd) {
+		return uint256(maker.pip().read());
 	}
 
 	function estimateDaiSaleProceeds(uint256 _attodaiToSell) public pure returns (uint256 _attoeth) {
@@ -235,25 +258,40 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return _attodaiToSell / 510;
 	}
 
-	function getCdps(address /*_user*/, uint256 _offset, uint256 _pageSize) public view returns (CDP[] _cdps) {
+	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
+		uint256 _cdpCount = cdpCount();
 		uint256 _matchCount = 0;
-		for (uint256 _i = 0; _i < cdps.length; ++_i) {
-			if (cdps[_i].id < _offset) continue;
-			if (cdps[_i].id >= _offset + _pageSize) break;
+		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
+			(address _cdpOwner,,,) = maker.cups(bytes32(_i));
+			if (_cdpOwner != _user) continue;
 			++_matchCount;
 		}
 		_cdps = new CDP[](_matchCount);
 		_matchCount = 0;
-		for (_i = 0; _i < cdps.length; ++_i) {
-			if (cdps[_i].id < _offset) continue;
-			if (cdps[_i].id >= _offset + _pageSize) break;
-			_cdps[_matchCount] = cdps[_i];
+		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
+			(address _cdpOwner, uint256 _collateral,,) = maker.cups(bytes32(_i));
+			if (_cdpOwner != _user) continue;
+			// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
+			uint256 _debtInAttodai = maker.tab(bytes32(_i));
+			// this is fine... (no, I don't have any idea what this does)
+			uint256 _lockedAttoeth = mul27(_collateral + 1, mul18(maker.gap(), maker.per()));
+			// uint256 _costToBuyDaiInAttoeth = oasis.getPayAmount(weth, dai, _debtInAttodai);
+			// uint256 _feedCostToBuyDaiInAttoeth = mul18(_debtInAttodai, ethPriceInUsd());
+			// uint256 _exchangeCostInAttoeth = (_costToBuyDaiInAttoeth > _feedCostToBuyDaiInAttoeth) ? _costToBuyDaiInAttoeth - _feedCostToBuyDaiInAttoeth : 0;
+			_cdps[_matchCount] = CDP({
+				id: _i,
+				debtInAttodai: _debtInAttodai,
+				lockedAttoeth: _lockedAttoeth,
+				feeInAttoeth: 0.01 * 10**18, //_costToBuyDaiInAttoeth / 100,
+				exchangeCostInAttoeth: 0.1 * 10**18, //_exchangeCostInAttoeth,
+				userOwned: true
+			});
 			++_matchCount;
 		}
 		return _cdps;
 	}
 
-	function cdpCount() public pure returns (uint256 _cdpCount) {
-		return 2000;
+	function cdpCount() public view returns (uint256 _cdpCount) {
+		return maker.cupi();
 	}
 }

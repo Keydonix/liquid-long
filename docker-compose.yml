@@ -1,7 +1,7 @@
 version: "3"
 services:
     parity:
-        image: keydonix/parity-instantseal-node8
+        image: keydonix/parity-instantseal-maker
         ports:
             - "1235:8545"
     deploy:
@@ -10,8 +10,8 @@ services:
             - ETHEREUM_HTTP=http://parity:8545
             - ETHEREUM_GAS_PRICE_IN_NANOETH=1
             - ETHEREUM_PRIVATE_KEY=fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a
-            - ETHEREUM_OASIS_ADDRESS=0000000000000000000000000000000000000000
-            - ETHEREUM_MAKER_ADRESS=0000000000000000000000000000000000000000
+            - ETHEREUM_OASIS_ADDRESS=0x3c6721551c2ba3973560aef3e11d34ce05db4047
+            - ETHEREUM_MAKER_ADRESS=0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6
         links:
             - parity
     client:
