@@ -253,9 +253,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return uint256(maker.pip().read());
 	}
 
-	function estimateDaiSaleProceeds(uint256 _attodaiToSell) public pure returns (uint256 _attoeth) {
-		// TODO: return sentinal value (0) if there isn't enough depth on the books to sell all of the DAI
-		return _attodaiToSell / 510;
+	function estimateDaiSaleProceeds(uint256 _attodaiToSell) public view returns (uint256 _attoeth) {
+		return oasis.getPayAmount(dai, weth, _attodaiToSell);
+	}
+
+	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _attoeth) {
+		return oasis.getPayAmount(weth, dai, _attodaiToBuy);
 	}
 
 	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
@@ -275,15 +278,15 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			uint256 _debtInAttodai = maker.tab(bytes32(_i));
 			// this is fine... (no, I don't have any idea what this does)
 			uint256 _lockedAttoeth = mul27(_collateral + 1, mul18(maker.gap(), maker.per()));
-			// uint256 _costToBuyDaiInAttoeth = oasis.getPayAmount(weth, dai, _debtInAttodai);
-			// uint256 _feedCostToBuyDaiInAttoeth = mul18(_debtInAttodai, ethPriceInUsd());
-			// uint256 _exchangeCostInAttoeth = (_costToBuyDaiInAttoeth > _feedCostToBuyDaiInAttoeth) ? _costToBuyDaiInAttoeth - _feedCostToBuyDaiInAttoeth : 0;
+			uint256 _costToBuyDaiInAttoeth = estimateDaiPurchaseCosts(_debtInAttodai);
+			uint256 _feedCostToBuyDaiInAttoeth = mul18(_debtInAttodai, ethPriceInUsd());
+			uint256 _exchangeCostInAttoeth = (_costToBuyDaiInAttoeth > _feedCostToBuyDaiInAttoeth) ? _costToBuyDaiInAttoeth - _feedCostToBuyDaiInAttoeth : 0;
 			_cdps[_matchCount] = CDP({
 				id: _i,
 				debtInAttodai: _debtInAttodai,
 				lockedAttoeth: _lockedAttoeth,
-				feeInAttoeth: 0.01 * 10**18, //_costToBuyDaiInAttoeth / 100,
-				exchangeCostInAttoeth: 0.1 * 10**18, //_exchangeCostInAttoeth,
+				feeInAttoeth: _costToBuyDaiInAttoeth / 100,
+				exchangeCostInAttoeth: _exchangeCostInAttoeth,
 				userOwned: true
 			});
 			++_matchCount;
