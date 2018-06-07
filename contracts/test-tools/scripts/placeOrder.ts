@@ -23,7 +23,7 @@ async function doStuff() {
   const oasisAddress = getEnv('ETHEREUM_OASIS_ADDRESS');
   const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY'))
 
-  const provider = new providers.JsonRpcProvider(jsonRpcAddress, {chainId: 4, ensAddress: '', name: 'instaseal'})
+  const provider = new providers.JsonRpcProvider(jsonRpcAddress, {chainId: 17, ensAddress: '', name: 'instaseal'})
   const wallet = new Wallet(privateKey.toHexStringWithPrefix(), provider)
 
   // TODO: arguments/env

@@ -22,7 +22,7 @@ export class OasisdexContract {
   protected async localCall(parameters: Array<any>, txName: string, sender?: string, attachedEth?: BN): Promise<Array<any>> {
     var overrideOptions: EthersOptions = {};
     if (attachedEth !== undefined) overrideOptions["value"] = new utils.BigNumber(attachedEth);
-    return await this.contract.functions[txName.toString()](...parameters, overrideOptions);
+    return [await this.contract.functions[txName.toString()](...parameters, overrideOptions)];
   }
 
   protected async remoteCall(parameters: Array<any>, txName: string, sender?: string, gasPrice?: BN, attachedEth?: BN): Promise<void> {
