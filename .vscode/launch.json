@@ -7,7 +7,7 @@
 		{
 			"type": "node",
 			"request": "launch",
-			"name": "Deploy",
+			"name": "Deploy - Parity",
 			"cwd": "${workspaceFolder}/contracts",
 			"runtimeArgs": [ "-r", "ts-node/register", ],
 			"args": [ "${workspaceFolder}/contracts/deployment/scripts/deploy.ts", ],
@@ -16,8 +16,24 @@
 				"ETHEREUM_HTTP": "http://localhost:1235",
 				"ETHEREUM_GAS_PRICE_IN_NANOETH": "1",
 				"ETHEREUM_PRIVATE_KEY": "fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a",
-				"ETHEREUM_OASIS_ADDRESS": "0000000000000000000000000000000000000000",
-				"ETHEREUM_MAKER_ADRESS": "0000000000000000000000000000000000000000",
+				"ETHEREUM_OASIS_ADDRESS": "0x3c6721551c2ba3973560aef3e11d34ce05db4047",
+				"ETHEREUM_MAKER_ADRESS": "0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6",
+			},
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Deploy - Geth",
+			"cwd": "${workspaceFolder}/contracts",
+			"runtimeArgs": [ "-r", "ts-node/register", ],
+			"args": [ "${workspaceFolder}/contracts/deployment/scripts/deploy.ts", ],
+			"env": {
+				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/deployment/tsconfig.json",
+				"ETHEREUM_HTTP": "http://localhost:1236",
+				"ETHEREUM_GAS_PRICE_IN_NANOETH": "1",
+				"ETHEREUM_PRIVATE_KEY": "fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a",
+				"ETHEREUM_OASIS_ADDRESS": "0x3c6721551c2ba3973560aef3e11d34ce05db4047",
+				"ETHEREUM_MAKER_ADRESS": "0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6",
 			},
 		},
 		{
@@ -29,6 +45,49 @@
 			"args": [ "${workspaceFolder}/contracts/deployment/scripts/compile.ts", ],
 			"env": {
 				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/deployment/tsconfig.json",
+			}
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Oasis Orders - Parity",
+			"cwd": "${workspaceFolder}/contracts",
+			"runtimeArgs": [ "-r", "ts-node/register", ],
+			"args": [ "${workspaceFolder}/contracts/test-tools/scripts/placeOrder.ts", ],
+			"env": {
+				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/test-tools/tsconfig.json",
+				"ETHEREUM_HTTP": "http://localhost:1235",
+				"ETHEREUM_GAS_PRICE_IN_NANOETH": "1",
+				"ETHEREUM_PRIVATE_KEY": "fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a",
+				"ETHEREUM_OASIS_ADDRESS": "0x3c6721551c2ba3973560aef3e11d34ce05db4047",
+				"ETHEREUM_MAKER_ADRESS": "0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6",
+			}
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Oasis Orders - Geth",
+			"cwd": "${workspaceFolder}/contracts",
+			"runtimeArgs": [ "-r", "ts-node/register", ],
+			"args": [ "${workspaceFolder}/contracts/test-tools/scripts/placeOrder.ts", ],
+			"env": {
+				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/test-tools/tsconfig.json",
+				"ETHEREUM_HTTP": "http://localhost:1236",
+				"ETHEREUM_GAS_PRICE_IN_NANOETH": "1",
+				"ETHEREUM_PRIVATE_KEY": "fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a",
+				"ETHEREUM_OASIS_ADDRESS": "0x3c6721551c2ba3973560aef3e11d34ce05db4047",
+				"ETHEREUM_MAKER_ADRESS": "0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6",
+			}
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Sandbox",
+			"cwd": "${workspaceFolder}/contracts",
+			"runtimeArgs": [ "-r", "ts-node/register", ],
+			"args": [ "${workspaceFolder}/contracts/test-tools/scripts/sandbox.ts", ],
+			"env": {
+				"TS_NODE_PROJECT": "${workspaceFolder}/contracts/test-tools/tsconfig.json",
 			}
 		}
 	]
