@@ -16,6 +16,26 @@ function getEnv(name: string): string {
 	return value;
 }
 
+enum OrderType {
+	BID,
+	ASK,
+}
+
+async function placeMultipleEqualOrders(od: OasisdexContract, orderType: OrderType, startPrice: BN, endPrice: BN, ethAmount: BN, orderCount: number) {
+	const [payToken, buyToken] = (orderType == OrderType.ASK) ? [WETH_ADDRESS, DAI_ADDRESS] : [DAI_ADDRESS, WETH_ADDRESS];
+
+	const priceDelta = endPrice.sub(startPrice);
+	const orderEth = ethAmount.div(new BN(orderCount));
+	for (let i = 0; i < orderCount; ++i) {
+		const orderPrice = startPrice.add(priceDelta.mul(new BN(i)).div(new BN(orderCount - 1)));
+		const orderDai = orderEth.mul(orderPrice);
+
+		const [payAmount, buyAmount] = (orderType == OrderType.ASK) ? [orderEth, orderDai] : [orderDai, orderEth];
+		console.log(`Placing ${orderType === OrderType.ASK ? "ask" : "bid"} order for ${orderEth.div(ETHER).toString(10)} @ ${orderPrice.toString(10)}`);
+		await od.offer(payAmount, payToken, buyAmount, buyToken, ZERO);
+	}
+}
+
 async function doStuff() {
 	// gather/validate inputs
 	const jsonRpcAddress = getEnv('ETHEREUM_HTTP');
@@ -23,18 +43,15 @@ async function doStuff() {
 	const oasisAddress = getEnv('ETHEREUM_OASIS_ADDRESS');
 	const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY'))
 
-	const provider = new providers.JsonRpcProvider(jsonRpcAddress, { chainId: 4173, ensAddress: '', name: 'instaseal' })
+	const provider = new providers.JsonRpcProvider(jsonRpcAddress, {chainId: 4173, ensAddress: '', name: 'instaseal'})
 	const wallet = new Wallet(privateKey.toHexStringWithPrefix(), provider)
-
-	// TODO: arguments/env
-	const payAmount = new BN(600).mul(ETHER);
-	const buyAmount = new BN(1).mul(ETHER);
 
 	const od = new OasisdexContract(oasisAddress, wallet, gasPriceInNanoeth);
 
 	// TODO: check approvals/approve
 	console.log("Sending offer...")
-	console.log(await od.offer(payAmount, DAI_ADDRESS, buyAmount, WETH_ADDRESS, ZERO));
+	await placeMultipleEqualOrders(od, OrderType.ASK, new BN(601), new BN(625), new BN(20).mul(ETHER), 3);
+	await placeMultipleEqualOrders(od, OrderType.BID, new BN(575), new BN(595), new BN(20).mul(ETHER), 4);
 	console.log("Sent")
 }
 
