@@ -27,7 +27,7 @@ async function doStuff() {
 	const oldValue = (await makerContract.mat_());
 	console.log("Old mat value:", oldValue.toString(10));
 
-	await momContract.setMat(new BN("140").mul(ETHER));
+	await momContract.setMat(new BN("1400000000").mul(ETHER));
 
 	const newValue = (await makerContract.mat_());
 	console.log("New mat value:", newValue.toString(10));

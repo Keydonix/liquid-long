@@ -10,6 +10,8 @@ type EthersOptions = {
   value?: utils.BigNumber;
 }
 
+const TRANSACTION_TIMEOUT = 120000;
+
 class CallableContract {
 	private readonly gasPrice: utils.BigNumber;
 	private readonly contract: Contract;
@@ -25,12 +27,20 @@ class CallableContract {
 		return [await this.contract.functions[txName.toString()](...parameters, overrideOptions)];
 	}
 
-	protected async remoteCall(parameters: Array<any>, txName: string, sender?: string, gasPrice?: BN, attachedEth?: BN): Promise<void> {
+	protected async remoteCall(parameters: Array<any>, txName: string, sender?: string, gasPrice?: BN, attachedEth?: BN): Promise<string|undefined> {
 		var overrideOptions: EthersOptions = {};
 		if (this.gasPrice !== undefined) overrideOptions["gasPrice"] = this.gasPrice;
 		if (gasPrice !== undefined) overrideOptions["gasPrice"] = new utils.BigNumber(gasPrice);
 		if (attachedEth !== undefined) overrideOptions["value"] = new utils.BigNumber(attachedEth);
-		return await this.contract.functions[txName](...parameters, overrideOptions);
+		const txDetails = await this.contract.functions[txName](...parameters, overrideOptions);
+		const hash = txDetails.hash;
+		await this.contract.provider.waitForTransaction(hash, TRANSACTION_TIMEOUT);
+		const txReceipt = await this.contract.provider.getTransactionReceipt(hash);
+		if (txReceipt.blockNumber >= 0) {
+			return hash;
+		} else {
+			throw new Error(`Transaction ${hash} submitted, but not mined within ${TRANSACTION_TIMEOUT}ms`);
+		}
 	}
 }
 
