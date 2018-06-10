@@ -1,5 +1,5 @@
 import { PrivateKey } from '../libraries/PrivateKey'
-import { OasisdexContract } from '../libraries/OasisdexContract'
+import { OasisdexContract } from '../libraries/ContractInterfaces'
 import { providers, Wallet } from 'ethers'
 import BN = require("bn.js");
 
