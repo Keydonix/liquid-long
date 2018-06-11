@@ -17,7 +17,7 @@ export class ContractDeployer {
 	public constructor(jsonRpcEndpoint: string, gasPriceInNanoeth: number, privateKey: PrivateKey, abi: Abi, bytecode: ByteArray) {
 		this.abi = abi
 		this.bytecode = bytecode
-		this.provider = new providers.JsonRpcProvider(jsonRpcEndpoint, { chainId: 17, ensAddress: '', name: 'instaseal' })
+		this.provider = new providers.JsonRpcProvider(jsonRpcEndpoint, { chainId: 4173, ensAddress: '', name: 'dev' })
 		this.wallet = new Wallet(privateKey.toHexStringWithPrefix(), this.provider)
 		this.gasPrice = gasPriceInNanoeth * 10**9
 	}
@@ -29,6 +29,7 @@ export class ContractDeployer {
 		transactionToDeploy.gasLimit = await this.provider.estimateGas(transactionToDeploy)
 		const transaction = await this.wallet.sendTransaction(transactionToDeploy)
 		if (transaction === undefined) throw new Error(`deployment transaction failed:\n${transactionToDeploy}`)
+		await this.provider.waitForTransaction(transaction.hash!, 20000)
 		const transactionReceipt = await this.provider.getTransactionReceipt(transaction.hash!)
 		if (transactionReceipt.contractAddress === null) throw new Error('Transaction receipt has no contractAddress')
 		if (transactionReceipt.status !== 1) throw new Error(`Contract upload failed with transaction receipt status of ${transactionReceipt.status}`)
