@@ -184,7 +184,7 @@ declare module 'ethers' {
 	}
 
 	class Contract {
-		public constructor(addressOrENSName: string, contractInterface: string | object | Interface, signerOrProvider: any)
+		public constructor(addressOrENSName: string, contractInterface: string | object | Interface, signerOrProvider: Wallet | providers.Provider)
 
 		readonly address: string
 		readonly contractInterface: Interface
