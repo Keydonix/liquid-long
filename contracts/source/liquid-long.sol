@@ -267,14 +267,14 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
 	function getVolumeAtPrice(ERC20 pay_gem, ERC20 buy_gem, uint pay_amount, uint buy_amount) public view returns (uint fill_pay_amt, uint fill_buy_amt) {
 		uint offerId = oasis.getBestOffer(buy_gem, pay_gem);
-		(uint offer_pay_amount, , uint offer_buy_amount,) = oasis.getOffer(offerId);
-		while (offer_pay_amount * pay_amount > offer_buy_amount * buy_amount) {
+		while (offerId != 0) {
+			(uint offer_pay_amount, , uint offer_buy_amount,) = oasis.getOffer(offerId);
+			if (offer_pay_amount * pay_amount < offer_buy_amount * buy_amount) {
+				break;
+			}
 			fill_pay_amt += offer_buy_amount;
 			fill_buy_amt += offer_pay_amount;
 			offerId = oasis.getWorseOffer(offerId);
-			if (offerId == 0) {
-				break;
-			}
 			(offer_pay_amount, , offer_buy_amount,) = oasis.getOffer(offerId);
 		}
 		return (fill_pay_amt, fill_buy_amt);
