@@ -265,18 +265,18 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
-	function getVolumeAtPrice(ERC20 _payGem, ERC20 _buyGem, uint _payAmount, uint _buyAmount) public view returns (uint fillPayAmount, uint fillBuyAmount) {
-		uint offerId = oasis.getBestOffer(_buyGem, _payGem);
-		while (offerId != 0) {
-			(uint offerPayAmount, , uint offerBuyAmount,) = oasis.getOffer(offerId);
-			if (offerPayAmount * _payAmount < offerBuyAmount * _buyAmount) {
+	function getVolumeAtPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _payAmount, uint256 _buyAmount) public view returns (uint256 _fillPayAmount, uint256 _fillBuyAmount) {
+		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
+		while (_offerId != 0) {
+			(uint256 _offerPayAmount, , uint256 _offerBuyAmount,) = oasis.getOffer(_offerId);
+			if (_offerPayAmount * _payAmount < _offerBuyAmount * _buyAmount) {
 				break;
 			}
-			fillPayAmount += offerBuyAmount;
-			fillBuyAmount += offerPayAmount;
-			offerId = oasis.getWorseOffer(offerId);
+			_fillPayAmount += _offerBuyAmount;
+			_fillBuyAmount += _offerPayAmount;
+			_offerId = oasis.getWorseOffer(_offerId);
 		}
-		return (fillPayAmount, fillBuyAmount);
+		return (_fillPayAmount, _fillBuyAmount);
 	}
 
 	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
