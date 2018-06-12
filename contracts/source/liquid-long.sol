@@ -279,6 +279,26 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (_fillPayAmount, _fillBuyAmount);
 	}
 
+	function getLiquidationPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _buyAmount) public view returns (uint256 _fillPayAmount, uint256 _fillBuyAmount) {
+		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
+		while (_offerId != 0 && _buyAmount > _fillBuyAmount) {
+			(uint256 _offerPayAmount, , uint256 _offerBuyAmount,) = oasis.getOffer(_offerId);
+			if (_fillBuyAmount + _offerPayAmount > _buyAmount) {
+				uint256 _buyRemaining = _buyAmount - _fillBuyAmount;
+				// + 1 required here to in case _offerBuyAmount / _offerPayAmount is rounded down.
+				// You get to choose between buying less than or more than
+				uint256 _payRemaining = (_buyRemaining + 1) * _offerBuyAmount / _offerPayAmount;
+				_fillPayAmount += _payRemaining;
+				_fillBuyAmount += _buyRemaining;
+				break;
+			}
+			_fillPayAmount += _offerBuyAmount;
+			_fillBuyAmount += _offerPayAmount;
+			_offerId = oasis.getWorseOffer(_offerId);
+		}
+		return (_fillPayAmount, _fillBuyAmount);
+	}
+
 	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
 		uint256 _cdpCount = cdpCount();
 		uint256 _matchCount = 0;
