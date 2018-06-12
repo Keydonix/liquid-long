@@ -280,7 +280,6 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (fill_pay_amt, fill_buy_amt);
 	}
 
-
 	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
 		uint256 _cdpCount = cdpCount();
 		uint256 _matchCount = 0;
