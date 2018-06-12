@@ -180,6 +180,9 @@ contract Peth is ERC20 {
 contract Oasis {
 	function getBuyAmount(ERC20 tokenToBuy, ERC20 tokenToPay, uint256 amountToPay) external view returns(uint256 amountBought);
 	function getPayAmount(ERC20 tokenToPay, ERC20 tokenToBuy, uint amountToBuy) public constant returns (uint amountPaid);
+	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint);
+	function getWorseOffer(uint id) public constant returns(uint);
+	function getOffer(uint id) public constant returns (uint, ERC20, uint, ERC20);
 }
 
 contract Medianizer {
@@ -260,6 +263,23 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _attoeth) {
 		return oasis.getPayAmount(weth, dai, _attodaiToBuy);
 	}
+
+	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
+	function getVolumeAtPrice(ERC20 pay_gem, ERC20 buy_gem, uint pay_amount, uint buy_amount) public view returns (uint fill_pay_amt, uint fill_buy_amt) {
+		uint offerId = oasis.getBestOffer(buy_gem, pay_gem);
+		(uint offer_pay_amount, , uint offer_buy_amount,) = oasis.getOffer(offerId);
+		while (offer_pay_amount * pay_amount > offer_buy_amount * buy_amount) {
+			fill_pay_amt += offer_buy_amount;
+			fill_buy_amt += offer_pay_amount;
+			offerId = oasis.getWorseOffer(offerId);
+			if (offerId == 0) {
+				break;
+			}
+			(offer_pay_amount, , offer_buy_amount,) = oasis.getOffer(offerId);
+		}
+		return (fill_pay_amt, fill_buy_amt);
+	}
+
 
 	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
 		uint256 _cdpCount = cdpCount();
