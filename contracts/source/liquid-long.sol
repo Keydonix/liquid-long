@@ -275,7 +275,6 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			fill_pay_amt += offer_buy_amount;
 			fill_buy_amt += offer_pay_amount;
 			offerId = oasis.getWorseOffer(offerId);
-			(offer_pay_amount, , offer_buy_amount,) = oasis.getOffer(offerId);
 		}
 		return (fill_pay_amt, fill_buy_amt);
 	}
