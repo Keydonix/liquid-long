@@ -180,9 +180,9 @@ contract Peth is ERC20 {
 contract Oasis {
 	function getBuyAmount(ERC20 tokenToBuy, ERC20 tokenToPay, uint256 amountToPay) external view returns(uint256 amountBought);
 	function getPayAmount(ERC20 tokenToPay, ERC20 tokenToBuy, uint amountToBuy) public constant returns (uint amountPaid);
-	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint);
-	function getWorseOffer(uint id) public constant returns(uint);
-	function getOffer(uint id) public constant returns (uint, ERC20, uint, ERC20);
+	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint offerId);
+	function getWorseOffer(uint id) public constant returns(uint offerId);
+	function getOffer(uint id) public constant returns (uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem);
 }
 
 contract Medianizer {
