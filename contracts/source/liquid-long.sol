@@ -317,39 +317,39 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
-	function getVolumeAtPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _payAmount, uint256 _buyAmount) public view returns (uint256 _fillPayAmount, uint256 _fillBuyAmount) {
+	function getVolumeAtPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _payAmount, uint256 _buyAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
 		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
 		while (_offerId != 0) {
 			(uint256 _offerPayAmount, , uint256 _offerBuyAmount,) = oasis.getOffer(_offerId);
 			if (_offerPayAmount.mul(_payAmount) < _offerBuyAmount.mul(_buyAmount)) {
 				break;
 			}
-			_fillPayAmount = _fillPayAmount.add(_offerBuyAmount);
-			_fillBuyAmount = _fillBuyAmount.add(_offerPayAmount);
+			_paidAmount = _paidAmount.add(_offerBuyAmount);
+			_boughtAmount = _boughtAmount.add(_offerPayAmount);
 			_offerId = oasis.getWorseOffer(_offerId);
 		}
-		return (_fillPayAmount, _fillBuyAmount);
+		return (_paidAmount, _boughtAmount);
 	}
 
-	function getLiquidationPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _buyAmount) public view returns (uint256 _fillPayAmount, uint256 _fillBuyAmount) {
+	function getLiquidationPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _buyAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
 		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
-		while (_offerId != 0 && _buyAmount > _fillBuyAmount) {
+		while (_offerId != 0 && _buyAmount > _boughtAmount) {
 			(uint256 _offerPayAmount, , uint256 _offerBuyAmount,) = oasis.getOffer(_offerId);
-			if (_fillBuyAmount.add(_offerPayAmount) > _buyAmount) {
-				uint256 _buyRemaining = _buyAmount - _fillBuyAmount;
+			if (_boughtAmount.add(_offerPayAmount) > _buyAmount) {
+				uint256 _buyRemaining = _buyAmount - _boughtAmount;
 				// + 1 required here to in case _offerBuyAmount / _offerPayAmount is rounded down.
 				// You get to choose between buying less than or more than
-				// TODO: safe math after verying this logic is correct
+				// TODO: safe math after verifying this logic is correct
 				uint256 _payRemaining = (_buyRemaining * _offerBuyAmount / _offerPayAmount) + 1;
-				_fillPayAmount = _fillPayAmount.add(_payRemaining);
-				_fillBuyAmount = _fillBuyAmount.add(_buyRemaining);
+				_paidAmount = _paidAmount.add(_payRemaining);
+				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
 			}
-			_fillPayAmount = _fillPayAmount.add(_offerBuyAmount);
-			_fillBuyAmount = _fillBuyAmount.add(_offerPayAmount);
+			_paidAmount = _paidAmount.add(_offerBuyAmount);
+			_boughtAmount = _boughtAmount.add(_offerPayAmount);
 			_offerId = oasis.getWorseOffer(_offerId);
 		}
-		return (_fillPayAmount, _fillBuyAmount);
+		return (_paidAmount, _boughtAmount);
 	}
 
 	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
