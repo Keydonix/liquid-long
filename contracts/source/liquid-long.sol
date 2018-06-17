@@ -284,7 +284,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 debtInAttodai;
 		uint256 lockedAttoeth;
 		uint256 feeInAttoeth;
-		uint256 exchangeCostInAttoeth;
+		uint256 liquidationCostInAttoeth;
+		uint256 liquidationDebtInAttodai;
 		bool userOwned;
 	}
 
@@ -312,8 +313,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return oasis.getPayAmount(dai, weth, _attodaiToSell);
 	}
 
-	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _attoeth) {
-		return oasis.getPayAmount(weth, dai, _attodaiToBuy);
+	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
+		return getLiquidationPrice(weth, dai, _attodaiToBuy);
 	}
 
 	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
@@ -367,19 +368,21 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			if (_cdpOwner != _user) continue;
 			// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
 			uint256 _debtInAttodai = maker.tab(bytes32(_i));
-			// // this is fine... (no, I don't have any idea what this does)
-			/*uint256 _lockedAttoeth =*/ mul27(_collateral + 1, mul18(maker.gap(), maker.per()));
-			/*uint256 _costToBuyDaiInAttoeth =*/ estimateDaiPurchaseCosts(_debtInAttodai);
-			// uint256 _feedCostToBuyDaiInAttoeth = mul18(_debtInAttodai, ethPriceInUsd());
-			// uint256 _exchangeCostInAttoeth = (_costToBuyDaiInAttoeth > _feedCostToBuyDaiInAttoeth) ? _costToBuyDaiInAttoeth - _feedCostToBuyDaiInAttoeth : 0;
-			// _cdps[_matchCount] = CDP({
-			// 	id: _i,
-			// 	debtInAttodai: _debtInAttodai,
-			// 	lockedAttoeth: _lockedAttoeth,
-			// 	feeInAttoeth: _costToBuyDaiInAttoeth / 100,
-			// 	exchangeCostInAttoeth: _exchangeCostInAttoeth,
-			// 	userOwned: true
-			// });
+			// Adjust locked attoeth to factor in peth/weth ratio
+			uint256 _lockedAttoeth = mul27(_collateral + 1, mul18(maker.gap(), maker.per()));
+			// We use two values in case order book can not satisfy closing CDP
+			// Can be closed if _liqudationDebtInAttodai == _debtInAttodai
+			(uint256 _liquidationCostInAttoeth, uint256 _liquidationDebtInAttodai) = estimateDaiPurchaseCosts(_debtInAttodai);
+
+			_cdps[_matchCount] = CDP({
+				id: _i,
+				debtInAttodai: _debtInAttodai,
+				lockedAttoeth: _lockedAttoeth,
+				feeInAttoeth: _liquidationCostInAttoeth / 100,
+				liquidationCostInAttoeth: _liquidationCostInAttoeth,
+				liquidationDebtInAttodai: _liquidationDebtInAttodai,
+				userOwned: true
+			});
 			++_matchCount;
 		}
 		return _cdps;
