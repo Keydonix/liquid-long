@@ -75,19 +75,23 @@ function abiDecodeNumber(value) {
  * @returns {CDP}
  */
 function decodeCdp(encodedCdp) {
-	if (!/^(?:[a-fA-F0-9]{64}){6}$/.test(encodedCdp)) throw new Error(`Expected 384 hex digits but got ${encodedCdp}`)
+	if (!/^(?:[a-fA-F0-9]{64}){8}$/.test(encodedCdp)) throw new Error(`Expected 512 hex digits but got ${encodedCdp}`)
 	const id = abiDecodeNumber(encodedCdp.substr(0, 64))
 	const debtInAttodai = abiDecodeNumber(encodedCdp.substr(64, 64))
 	const lockedAttoeth = abiDecodeNumber(encodedCdp.substr(128, 64))
 	const feeInAttoeth = abiDecodeNumber(encodedCdp.substr(192, 64))
-	const exchangeCostInAttoeth = abiDecodeNumber(encodedCdp.substr(256, 64))
-	const userOwned = abiDecodeBoolean(encodedCdp.substr(320, 64))
+	const liquidationCostInAttoeth = abiDecodeNumber(encodedCdp.substr(256, 64))
+	const liquidationDebtInAttodai = abiDecodeNumber(encodedCdp.substr(320, 64))
+	const liquidationCostAtFeedPriceInAttoeth = abiDecodeNumber(encodedCdp.substr(384, 64))
+	const userOwned = abiDecodeBoolean(encodedCdp.substr(448, 64))
 	return {
 		id: id,
 		debtInDai: debtInAttodai / 10**18,
 		lockedEth: lockedAttoeth / 10**18,
-		ourFee: feeInAttoeth / 10**18,
-		exchangeFee: exchangeCostInAttoeth / 10**18,
+		feeInEth: feeInAttoeth / 10**18,
+		liquidationCostInEth: liquidationCostInAttoeth / 10**18,
+		liquidatableDebtInDai: liquidationDebtInAttodai / 10**18,
+		liquidationCostAtFeedPriceInEth: liquidationCostAtFeedPriceInAttoeth / 10**18,
 		state: userOwned ? 'user-controlled' : 'contract-controlled',
 	}
 }
@@ -103,7 +107,7 @@ function decodeCdpArray(encodedCdpArray) {
 	if (twoZero !== '0000000000000000000000000000000000000000000000000000000000000020') throw new Error(`First value wasn't expected 0x20`)
 	const length = parseInt(encodedCdpArray.substr(64, 64), 16)
 	const arrayHeaderSize = 128
-	const cdpElementCount = 6
+	const cdpElementCount = 8
 	const cdpStructSize = cdpElementCount * 64
 	const expectedEncodedLength = arrayHeaderSize + length * cdpStructSize
 	if (encodedCdpArray.length !== expectedEncodedLength) throw new Error(`Expected a string of length ${expectedEncodedLength} but received a string of length ${encodedCdpArray.length}`)
@@ -138,7 +142,7 @@ function networkIdToEtherscanSubdomain(networkId) {
 		case '3': return 'ropsten'
 		case '4': return 'rinkeby'
 		case '42': return 'kovan'
-		case '17': return 'instantseal'
+		case '4173': return 'private'
 		default: throw new Error(`Unknown network ID: ${networkId}`)
 	}
 }
@@ -148,7 +152,7 @@ export class EthereumClient {
 		function getEthereumNodeAddress() {
 			const params = new URLSearchParams(document.location.search.substring(1))
 			let address = params.get('ethereum_node_address')
-			if (address === null) address = 'http://parity.zoltu.com:8545'
+			if (address === null) address = 'http://localhost:1235'
 			return address
 		}
 
@@ -261,7 +265,7 @@ export class State {
 				case '3':
 				case '4':
 				case '42':
-				case '17':
+				case '4173':
 					return source.networkId
 				default:
 					return '1'
@@ -461,7 +465,7 @@ export class ContractAddresses {
 	 */
 	constructor(stateManager) {
 		const liquidLongAddresses = {
-			'17': '204CDD1689C8A4DA426894C150A0FA672A2EAB4C'
+			'4173': '80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3'
 		}
 
 		this.getLiquidLongAddress = () => {
@@ -510,6 +514,7 @@ export class Presentor {
 			this.feeTotal.innerHTML = Number.isFinite(state.totalCostInEth) ? round(state.totalCostInEth, numberOfEthDecimals(state)).toString(10) : '<span class="loading"></span>'
 
 			// update input boxes (for clamping/defaulting) _unless_ they have focus (don't mess with them while user is editing)
+			// FIXME: don't set these if the user didn't previously set them
 			if (this.limitEthPrice !== document.activeElement) this.limitEthPrice.value = round(state.limitPriceOfEthInDai, 2).toString(10)
 			if (this.leverageMultiplier !== document.activeElement) this.leverageMultiplier.value = state.leverageMultiplier.toString(10)
 			if (this.leverageSize !== document.activeElement) this.leverageSize.value = state.leverageSizeInEth.toString(10)
@@ -523,15 +528,21 @@ export class Presentor {
 			for (let cdp of state.cdps) {
 				const cdpRow = document.importNode(this.myCdpRowTemplate.content, true)
 				const columns = cdpRow.querySelectorAll('td')
+				const liquidatable = cdp.liquidatableDebtInDai === cdp.debtInDai
 				columns[0].textContent = cdp.id.toString(10)
 				columns[1].textContent = round(cdp.lockedEth, numberOfEthDecimals(state)).toString(10)
 				columns[2].textContent = round(cdp.debtInDai, 2).toString(10)
-				columns[3].textContent = round(cdp.ourFee, numberOfEthDecimals(state)).toString(10)
-				columns[4].textContent = round(cdp.exchangeFee, numberOfEthDecimals(state)).toString(10)
-				// FIXME: this currently uses ETH:USD price feed but it should use ETH:DAI market price for each CDP
-				columns[5].textContent = round(cdp.lockedEth - (cdp.debtInDai / state._priceOfEthInUsd)- cdp.ourFee - cdp.exchangeFee, numberOfEthDecimals(state)).toString(10)
-				if (cdp.state !== 'user-controlled') columns[6].querySelectorAll('button').forEach(child => child.setAttribute('disabled', ''), {})
-				if (cdp.state !== 'contract-controlled') columns[7].querySelectorAll('button').forEach(child => child.setAttribute('disabled', ''), {})
+				columns[3].innerHTML = (liquidatable)
+					? round(cdp.feeInEth, numberOfEthDecimals(state)).toString(10)
+					: '<span style="color:red" data-tip="OasisDEX does not have enough DAI available for purchase to close this CDP">⚠</span>'
+				columns[4].innerHTML = (liquidatable)
+					? round(cdp.liquidationCostInEth - cdp.liquidationCostAtFeedPriceInEth, numberOfEthDecimals(state)).toString(10)
+					: '<span style="color:red" data-tip="OasisDEX does not have enough DAI available for purchase to close this CDP">⚠</span>'
+				columns[5].textContent = (liquidatable)
+					? round(cdp.lockedEth - cdp.liquidationCostInEth - cdp.feeInEth, numberOfEthDecimals(state)).toString(10)
+					: round(cdp.lockedEth - cdp.liquidationCostAtFeedPriceInEth - cdp.feeInEth, numberOfEthDecimals(state)).toString(10)
+				if (cdp.state !== 'user-controlled' || !liquidatable) columns[6].querySelectorAll('button').forEach(child => child.setAttribute('disabled', ''), {})
+				if (cdp.state !== 'contract-controlled' || !liquidatable) columns[7].querySelectorAll('button').forEach(child => child.setAttribute('disabled', ''), {})
 				this.myCdpsTable.appendChild(cdpRow)
 			}
 		}
@@ -545,7 +556,7 @@ export class Presentor {
 				: (state.networkId === '3') ? '<span data-tip="Unsupported Network" style="color: darkred">Ropsten</span>'
 				: (state.networkId === '4') ? '<span data-tip="Unsupported Network" style="color: darkred">Rinkeby</span>'
 				: (state.networkId === '42') ? 'Kovan'
-				: (state.networkId === '17') ? 'InstantSeal'
+				: (state.networkId === '4173') ? 'Private'
 				: '<span class="loading"></span>'}`
 			if (state.mode === 'opening') {
 				this.openCdpNav.classList.add('active')
@@ -705,11 +716,12 @@ export class LiquidLong {
 				data: `0x${estimateDaiSaleProceedsSignatureHash}${abiEncodeNumber(daiToSell * 10**18)}`
 			}
 			const stringResult = await ethereumClient.ethCall(transaction)
-			assertIsHexEncodedNumber(stringResult)
+			assert(/^[a-zA-Z0-9]{128}$/.test(stringResult), `expected ${stringResult} to be a 128 character hex`)
 			// stringResult could be a number that doesn't fit into a double, but the UI doesn't care about losing some precision since we are using this to give the user a recommendation for what they will end up paying, and we are truncating to 2 decimals in the UI anyway
-			const numberResult = parseInt(stringResult, 16)
-			if (numberResult === 0) return 'insufficient depth'
-			else return numberResult / 10**18
+			const attodaiPaid = parseInt(stringResult.substr(0, 64), 16)
+			const attoethBought = parseInt(stringResult.substr(64, 64), 16)
+			if (attodaiPaid / 10**18 !== daiToSell) return 'insufficient depth'
+			else return attoethBought / 10**18
 		}
 
 		/**
@@ -734,9 +746,9 @@ export class Poller {
 	constructor(ethereumClient, stateManager, liquidLong) {
 		this.pollNetworkId = async () => {
 			const networkId = await ethereumClient.netVersion()
-			// intentionally not awaited to avoid stack overflow
-			schedule(10000, this.pollNetworkId)
-			if (networkId !== '1' && networkId !== '3' && networkId !== '4' && networkId !== '42' && networkId !== '17') throw new Error(`Unsupported network ${networkId}`)
+			// MetaMask caches this, so it is safe to hammer it
+			setTimeout(this.pollNetworkId, 100)
+			if (networkId !== '1' && networkId !== '3' && networkId !== '4' && networkId !== '42' && networkId !== '4173') throw new Error(`Unsupported network ${networkId}`)
 			if (networkId === stateManager.getState().networkId) return
 			// we need to reset any data fetched from the blockchain if the network changes
 			stateManager.update({
@@ -753,8 +765,8 @@ export class Poller {
 
 		this.pollCoinbase = async () => {
 			const coinbase = await ethereumClient.ethCoinbase()
-			// intentionally not awaited to avoid stack overflow
-			schedule(1000, this.pollCoinbase)
+			// MetaMask caches this, so it is safe to hammer it
+			setTimeout(this.pollCoinbase, 100)
 			if (coinbase === stateManager.getState().account) return
 			// we need to reset any data that is account specific when the account changes
 			stateManager.update({
@@ -765,15 +777,13 @@ export class Poller {
 
 		this.pollEthPrice = async () => {
 			const priceOfEthInUsd = await liquidLong.ethPriceInUsd()
-			// intentionally not awaited to avoid stack overflow
-			schedule(10000, this.pollEthPrice)
+			setTimeout(this.pollEthPrice, 10000)
 			stateManager.update({ priceOfEthInUsd: priceOfEthInUsd })
 		}
 
 		this.pollDaiProceeds = async () => {
 			const daiProceeds = await liquidLong.estimateDaiSaleProceeds(stateManager.getState().daiToDraw)
-			// intentionally not awaited to avoid stack overflow
-			schedule(10000, this.pollDaiProceeds)
+			setTimeout(this.pollDaiProceeds, 10000)
 			const estimatedPriceOfEthInDai = (daiProceeds === 'insufficient depth') ? 'insufficient depth' : stateManager.getState().daiToDraw / daiProceeds
 			stateManager.update({ estimatedPriceOfEthInDai: estimatedPriceOfEthInDai })
 		}
@@ -781,7 +791,7 @@ export class Poller {
 		this.pollOwnedCdps = async () => {
 			const account = await ethereumClient.ethCoinbase()
 			const cdps = (account === null) ? [] : await liquidLong.getCdps(account)
-			schedule(10000, this.pollOwnedCdps)
+			setTimeout(this.pollOwnedCdps, 10000)
 			stateManager.update({ cdps: cdps })
 		}
 

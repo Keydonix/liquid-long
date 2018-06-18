@@ -40,7 +40,7 @@ interface Window {
 	web3: Web3
 }
 
-type Networks = '1'|'3'|'4'|'42'|'17'
+type Networks = '1'|'3'|'4'|'42'|'4173'
 type Modes = 'opening'|'closing'
 type InsufficientDepth = 'insufficient depth'
 
@@ -48,8 +48,10 @@ interface CDP {
 	id: number
 	debtInDai: number
 	lockedEth: number
-	ourFee: number
-	exchangeFee: number
+	feeInEth: number
+	liquidationCostInEth: number
+	liquidatableDebtInDai: number
+	liquidationCostAtFeedPriceInEth: number
 	state: 'user-controlled'|'contract-controlled'
 }
 

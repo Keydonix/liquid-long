@@ -4,6 +4,8 @@ services:
         image: keydonix/geth-clique-maker
         ports:
             - "1236:8545"
+        environment:
+            - GETH_VERBOSITY=2
     parity:
         image: keydonix/parity-instantseal-maker
         ports:
