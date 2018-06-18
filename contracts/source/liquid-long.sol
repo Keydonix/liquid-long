@@ -286,6 +286,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 feeInAttoeth;
 		uint256 liquidationCostInAttoeth;
 		uint256 liquidationDebtInAttodai;
+		uint256 costToLiquidateAtFeedPriceInAttoeth;
 		bool userOwned;
 	}
 
@@ -373,7 +374,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			// We use two values in case order book can not satisfy closing CDP
 			// Can be closed if _liqudationDebtInAttodai == _debtInAttodai
 			(uint256 _liquidationCostInAttoeth, uint256 _liquidationDebtInAttodai) = estimateDaiPurchaseCosts(_debtInAttodai);
-
+			uint256 _costToLiquidateAtFeedPriceInAttoeth = mul18(_debtInAttodai, ethPriceInUsd());
 			_cdps[_matchCount] = CDP({
 				id: _i,
 				debtInAttodai: _debtInAttodai,
@@ -381,6 +382,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 				feeInAttoeth: _liquidationCostInAttoeth / 100,
 				liquidationCostInAttoeth: _liquidationCostInAttoeth,
 				liquidationDebtInAttodai: _liquidationDebtInAttodai,
+				costToLiquidateAtFeedPriceInAttoeth: _costToLiquidateAtFeedPriceInAttoeth,
 				userOwned: true
 			});
 			++_matchCount;
