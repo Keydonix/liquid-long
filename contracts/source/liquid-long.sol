@@ -285,7 +285,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 lockedAttoeth;
 		uint256 feeInAttoeth;
 		uint256 liquidationCostInAttoeth;
-		uint256 liquidationDebtInAttodai;
+		uint256 liquidatableDebtInAttodai;
 		uint256 liquidationCostAtFeedPriceInAttoeth;
 		bool userOwned;
 	}
@@ -306,16 +306,20 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (a * b + 5 * 10**17) / 10**18;
 	}
 
+	function div18(uint256 a, uint256 b) private pure returns (uint256) {
+		return (a * 10**18 + b / 2) / b;
+	}
+
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
 		return uint256(maker.pip().read());
 	}
 
-	function estimateDaiSaleProceeds(uint256 _attodaiToSell) public view returns (uint256 _attoeth) {
-		return oasis.getPayAmount(dai, weth, _attodaiToSell);
+	function estimateDaiSaleProceeds(uint256 _attodaiToSell) public view returns (uint256 _daiPaid, uint256 _wethBought) {
+		return getPayPriceAndAmount(dai, weth, _attodaiToSell);
 	}
 
-	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
-		return getLiquidationPrice(weth, dai, _attodaiToBuy);
+	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _wethPaid, uint256 _daiBought) {
+		return getBuyPriceAndAmount(weth, dai, _attodaiToBuy);
 	}
 
 	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
@@ -333,22 +337,41 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (_paidAmount, _boughtAmount);
 	}
 
-	function getLiquidationPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _buyAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
+	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
+	function getBuyPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _buyDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
 		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
-		while (_offerId != 0 && _buyAmount > _boughtAmount) {
-			(uint256 _offerPayAmount, , uint256 _offerBuyAmount,) = oasis.getOffer(_offerId);
-			if (_boughtAmount.add(_offerPayAmount) > _buyAmount) {
-				uint256 _buyRemaining = _buyAmount - _boughtAmount;
-				// + 1 required here to in case _offerBuyAmount / _offerPayAmount is rounded down.
-				// You get to choose between buying less than or more than
+		while (_offerId != 0) {
+			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
+			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			if (_buyRemaining <= _buyAvailableInOffer) {
 				// TODO: safe math after verifying this logic is correct
-				uint256 _payRemaining = (_buyRemaining * _offerBuyAmount / _offerPayAmount) + 1;
+				uint256 _payRemaining = (_buyRemaining * _payAvailableInOffer / _buyAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
 			}
-			_paidAmount = _paidAmount.add(_offerBuyAmount);
-			_boughtAmount = _boughtAmount.add(_offerPayAmount);
+			_paidAmount = _paidAmount.add(_payAvailableInOffer);
+			_boughtAmount = _boughtAmount.add(_buyAvailableInOffer);
+			_offerId = oasis.getWorseOffer(_offerId);
+		}
+		return (_paidAmount, _boughtAmount);
+	}
+
+	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
+	function getPayPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _payDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
+		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
+		while (_offerId != 0) {
+			uint256 _payRemaining = _payDesiredAmount.sub(_paidAmount);
+			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			if (_payRemaining <= _payAvailableInOffer) {
+				// TODO: safe math after verifying this logic is correct
+				uint256 _buyRemaining = (_payRemaining * _buyAvailableInOffer / _payAvailableInOffer);
+				_paidAmount = _paidAmount.add(_payRemaining);
+				_boughtAmount = _boughtAmount.add(_buyRemaining);
+				break;
+			}
+			_paidAmount = _paidAmount.add(_payAvailableInOffer);
+			_boughtAmount = _boughtAmount.add(_buyAvailableInOffer);
 			_offerId = oasis.getWorseOffer(_offerId);
 		}
 		return (_paidAmount, _boughtAmount);
@@ -373,15 +396,15 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			uint256 _lockedAttoeth = mul27(_collateral + 1, mul18(maker.gap(), maker.per()));
 			// We use two values in case order book can not satisfy closing CDP
 			// Can be closed if _liqudationDebtInAttodai == _debtInAttodai
-			(uint256 _liquidationCostInAttoeth, uint256 _liquidationDebtInAttodai) = estimateDaiPurchaseCosts(_debtInAttodai);
-			uint256 _liquidationCostAtFeedPriceInAttoeth = mul18(_debtInAttodai, ethPriceInUsd());
+			(uint256 _liquidationCostInAttoeth, uint256 _liquidatableDebtInAttodai) = estimateDaiPurchaseCosts(_debtInAttodai);
+			uint256 _liquidationCostAtFeedPriceInAttoeth = div18(_debtInAttodai, ethPriceInUsd());
 			_cdps[_matchCount] = CDP({
 				id: _i,
 				debtInAttodai: _debtInAttodai,
 				lockedAttoeth: _lockedAttoeth,
 				feeInAttoeth: _liquidationCostInAttoeth / 100,
 				liquidationCostInAttoeth: _liquidationCostInAttoeth,
-				liquidationDebtInAttodai: _liquidationDebtInAttodai,
+				liquidatableDebtInAttodai: _liquidatableDebtInAttodai,
 				liquidationCostAtFeedPriceInAttoeth: _liquidationCostAtFeedPriceInAttoeth,
 				userOwned: true
 			});

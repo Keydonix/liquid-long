@@ -2,7 +2,7 @@ import { Wallet, providers, Contract, utils } from 'ethers'
 
 const liquidLongAbi = [
 	{
-		"constant": true,
+		"constant": false,
 		"inputs": [
 			{
 				"name": "_user",
@@ -38,7 +38,15 @@ const liquidLongAbi = [
 						"type": "uint256"
 					},
 					{
-						"name": "exchangeCostInAttoeth",
+						"name": "liquidationCostInAttoeth",
+						"type": "uint256"
+					},
+					{
+						"name": "liquidatableDebtInAttodai",
+						"type": "uint256"
+					},
+					{
+						"name": "liquidationCostAtFeedPriceInAttoeth",
 						"type": "uint256"
 					},
 					{
@@ -48,6 +56,37 @@ const liquidLongAbi = [
 				],
 				"name": "_cdps",
 				"type": "tuple[]"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_payGem",
+				"type": "address"
+			},
+			{
+				"name": "_buyGem",
+				"type": "address"
+			},
+			{
+				"name": "_payDesiredAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "getPayPriceAndAmount",
+		"outputs": [
+			{
+				"name": "_paidAmount",
+				"type": "uint256"
+			},
+			{
+				"name": "_boughtAmount",
+				"type": "uint256"
 			}
 		],
 		"payable": false,
@@ -74,7 +113,46 @@ const liquidLongAbi = [
 		"name": "estimateDaiPurchaseCosts",
 		"outputs": [
 			{
-				"name": "_attoeth",
+				"name": "_wethPaid",
+				"type": "uint256"
+			},
+			{
+				"name": "_daiBought",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_payGem",
+				"type": "address"
+			},
+			{
+				"name": "_buyGem",
+				"type": "address"
+			},
+			{
+				"name": "_payAmount",
+				"type": "uint256"
+			},
+			{
+				"name": "_buyAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "getVolumeAtPrice",
+		"outputs": [
+			{
+				"name": "_paidAmount",
+				"type": "uint256"
+			},
+			{
+				"name": "_boughtAmount",
 				"type": "uint256"
 			}
 		],
@@ -116,7 +194,11 @@ const liquidLongAbi = [
 		"name": "estimateDaiSaleProceeds",
 		"outputs": [
 			{
-				"name": "_attoeth",
+				"name": "_daiPaid",
+				"type": "uint256"
+			},
+			{
+				"name": "_wethBought",
 				"type": "uint256"
 			}
 		],
@@ -159,6 +241,37 @@ const liquidLongAbi = [
 		"outputs": [],
 		"payable": false,
 		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_payGem",
+				"type": "address"
+			},
+			{
+				"name": "_buyGem",
+				"type": "address"
+			},
+			{
+				"name": "_buyDesiredAmount",
+				"type": "uint256"
+			}
+		],
+		"name": "getBuyPriceAndAmount",
+		"outputs": [
+			{
+				"name": "_paidAmount",
+				"type": "uint256"
+			},
+			{
+				"name": "_boughtAmount",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
