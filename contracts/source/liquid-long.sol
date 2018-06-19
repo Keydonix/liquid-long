@@ -315,13 +315,11 @@ contract Maker {
 	function join(uint wad) public;
 }
 
-contract LiquidLong is Ownable, Claimable, Pausable {
+contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	using SafeMath for uint256;
 
 	uint256 feePerEth;
 	uint256 affiliateFeePerEth;
-
-	PullPayment public mailbox;
 
 	Oasis public oasis;
 	Maker public maker;
@@ -361,8 +359,6 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		weth.approve(address(_maker), uint256(-1));
 		// Lock
 		peth.approve(address(_maker), uint256(-1));
-
-		mailbox = new PullPayment();
 	}
 
 	function mul27(uint256 a, uint256 b) private pure returns (uint256) {
