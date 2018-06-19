@@ -268,6 +268,12 @@ contract Maker {
 	function tab(bytes32 cup) public returns (uint);
 	function rap(bytes32 cup) public returns (uint);
 	function chi() public returns (uint);
+
+	function open() public returns (bytes32 cup);
+	function give(bytes32 cup, address guy) public;
+	function lock(bytes32 cup, uint wad) public;
+	function draw(bytes32 cup, uint wad) public;
+	function join(uint wad) public;
 }
 
 contract LiquidLong is Ownable, Claimable, Pausable {
@@ -277,7 +283,10 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	Maker public maker;
 	Dai private dai;
 	Weth private weth;
+	Peth private peth;
 	Mkr private mkr;
+
+	event NewCup(address user, bytes32 cup);
 
 	struct CDP {
 		uint256 id;
@@ -295,7 +304,19 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		maker = _maker;
 		dai = maker.sai();
 		weth = maker.gem();
+		peth = maker.skr();
 		mkr = maker.gov();
+
+		// Oasis buy/sell
+		dai.approve(address(_oasis), uint256(-1));
+		weth.approve(address(_oasis), uint256(-1));
+		// Wipe
+		dai.approve(address(_maker), uint256(-1));
+		mkr.approve(address(_maker), uint256(-1));
+		// Join
+		weth.approve(address(_maker), uint256(-1));
+		// Lock
+		peth.approve(address(_maker), uint256(-1));
 	}
 
 	function mul27(uint256 a, uint256 b) private pure returns (uint256) {
@@ -415,5 +436,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	function cdpCount() public view returns (uint256 _cdpCount) {
 		return maker.cupi();
+	}
+
+	// TODO: everything
+	function openCdp(uint256 leverageMultipler100To300, uint256 exchangeCostsInAttoeth, uint256 feesInAttoeth) public payable returns (bytes32 _cup)  {
+		bytes32 _cup = maker.open();
+		emit NewCup(msg.sender, _cup);
+		maker.give(_cup, msg.sender);
 	}
 }
