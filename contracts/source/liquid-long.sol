@@ -318,8 +318,7 @@ contract Maker {
 contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	using SafeMath for uint256;
 
-	uint256 feePerEth;
-	uint256 affiliateFeePerEth;
+	uint256 public providerFeePerEth;
 
 	Oasis public oasis;
 	Maker public maker;
