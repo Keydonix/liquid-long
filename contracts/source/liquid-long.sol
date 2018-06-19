@@ -439,7 +439,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// TODO: everything
-	function openCdp(uint256 leverageMultipler100To300, uint256 exchangeCostsInAttoeth, uint256 feesInAttoeth) public payable returns (bytes32 _cup)  {
+	function openCdp(uint256 leverage, uint256 exchangeCostsInAttoeth, uint256 feesInAttoeth, uint256 affiliateFeeInAttoeth, address affiliateAddress) public payable returns (bytes32 _cup)  {
+		require(leverage >= 100 && leverage <= 300);
 		_cup = maker.open();
 		emit NewCup(msg.sender, _cup);
 		maker.give(_cup, msg.sender);
