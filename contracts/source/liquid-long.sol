@@ -211,6 +211,45 @@ contract Pausable is Ownable {
 	}
 }
 
+/**
+ * @title PullPayment
+ * @dev Base contract supporting async send for pull payments. Inherit from this
+ * contract and use asyncSend instead of send or transfer.
+ * https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/payment/PullPayment.sol
+ */
+contract PullPayment {
+	using SafeMath for uint256;
+
+	mapping(address => uint256) public payments;
+	uint256 public totalPayments;
+
+	/**
+	* @dev Withdraw accumulated balance, called by payee.
+	*/
+	function withdrawPayments() public {
+		address payee = msg.sender;
+		uint256 payment = payments[payee];
+
+		require(payment != 0);
+		require(address(this).balance >= payment);
+
+		totalPayments = totalPayments.sub(payment);
+		payments[payee] = 0;
+
+		payee.transfer(payment);
+	}
+
+	/**
+	* @dev Called by the payer to store the sent amount as credit to be pulled.
+	* @param dest The destination address of the funds.
+	* @param amount The amount to transfer.
+	*/
+	function asyncSend(address dest, uint256 amount) internal {
+		payments[dest] = payments[dest].add(amount);
+		totalPayments = totalPayments.add(amount);
+	}
+}
+
 contract Dai is ERC20 {
 
 }
@@ -268,16 +307,27 @@ contract Maker {
 	function tab(bytes32 cup) public returns (uint);
 	function rap(bytes32 cup) public returns (uint);
 	function chi() public returns (uint);
+
+	function open() public returns (bytes32 cup);
+	function give(bytes32 cup, address guy) public;
+	function lock(bytes32 cup, uint wad) public;
+	function draw(bytes32 cup, uint wad) public;
+	function join(uint wad) public;
 }
 
-contract LiquidLong is Ownable, Claimable, Pausable {
+contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	using SafeMath for uint256;
+
+	uint256 public providerFeePerEth;
 
 	Oasis public oasis;
 	Maker public maker;
 	Dai private dai;
 	Weth private weth;
+	Peth private peth;
 	Mkr private mkr;
+
+	event NewCup(address user, bytes32 cup);
 
 	struct CDP {
 		uint256 id;
@@ -295,7 +345,19 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		maker = _maker;
 		dai = maker.sai();
 		weth = maker.gem();
+		peth = maker.skr();
 		mkr = maker.gov();
+
+		// Oasis buy/sell
+		dai.approve(address(_oasis), uint256(-1));
+		weth.approve(address(_oasis), uint256(-1));
+		// Wipe
+		dai.approve(address(_maker), uint256(-1));
+		mkr.approve(address(_maker), uint256(-1));
+		// Join
+		weth.approve(address(_maker), uint256(-1));
+		// Lock
+		peth.approve(address(_maker), uint256(-1));
 	}
 
 	function mul27(uint256 a, uint256 b) private pure returns (uint256) {
@@ -415,5 +477,13 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	function cdpCount() public view returns (uint256 _cdpCount) {
 		return maker.cupi();
+	}
+
+	// TODO: everything
+	function openCdp(uint256 leverage, uint256 exchangeCostsInAttoeth, uint256 feesInAttoeth, uint256 affiliateFeeInAttoeth, address affiliateAddress) public payable returns (bytes32 _cup)  {
+		require(leverage >= 100 && leverage <= 300);
+		_cup = maker.open();
+		emit NewCup(msg.sender, _cup);
+		maker.give(_cup, msg.sender);
 	}
 }
