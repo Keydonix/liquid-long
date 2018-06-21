@@ -344,7 +344,9 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		bool userOwned;
 	}
 
-	constructor(Oasis _oasis, Maker _maker) public {
+	constructor(Oasis _oasis, Maker _maker) public payable {
+		providerFeePerEth = 0.01 ether;
+
 		oasis = _oasis;
 		maker = _maker;
 		dai = maker.sai();
@@ -362,6 +364,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		weth.approve(address(_maker), uint256(-1));
 		// Lock
 		peth.approve(address(_maker), uint256(-1));
+
+		if (msg.value > 0) {
+			weth.deposit.value(msg.value)();
+		}
 	}
 
 	function mul27(uint256 a, uint256 b) private pure returns (uint256) {
@@ -529,6 +535,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		if (_loanInAttoeth > _wethBought) {
 			weth.deposit.value(_loanInAttoeth - _wethBought)();
 		}
+
 		if (_providerFeeInAttoeth != 0) {
 			asyncSend(owner, _providerFeeInAttoeth);
 		}
