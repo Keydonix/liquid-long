@@ -380,6 +380,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		return (a * 10**27 + b / 2) / b;
 	}
 
+	// Receive ETH from WETH withdraw
+	function () external payable {
+	}
+
 	function wethDeposit() public payable {
 		weth.deposit.value(msg.value)();
 	}
