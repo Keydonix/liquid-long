@@ -507,17 +507,17 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// TODO: SAFE MATH!
-	function openCdp(uint256 _leverage, uint256 _leverageSize, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup)  {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup)  {
 		require(_leverage >= 100 && _leverage <= 300);
-		uint256 _lockedInCdpInAttoeth = _leverageSize * _leverage / 100;
-		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSize;
+		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
+		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
 		uint256 _providerFeeInAttoeth = mul18(_loanInAttoeth, providerFeePerEth);
 		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
 		uint256 _drawInAttodai = mul18(_loanInAttoeth, uint256(maker.pip().read()));
 		uint256 _pethLockedInCdp = div27(_lockedInCdpInAttoeth, maker.per()) ;
 
 		// Convert ETH to WETH (only the value amount, excludes loan amount which is already WETH)
-		weth.deposit.value(_leverageSize)();
+		weth.deposit.value(_leverageSizeInAttoeth)();
 		// Open CDP
 		_cup = maker.open();
 		// Convert WETH into PETH
