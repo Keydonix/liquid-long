@@ -255,8 +255,8 @@ contract Dai is ERC20 {
 }
 
 contract Weth is ERC20 {
-    function deposit() public payable;
-		function withdraw(uint wad) public;
+	function deposit() public payable;
+	function withdraw(uint wad) public;
 }
 
 contract Mkr is ERC20 {
@@ -293,13 +293,13 @@ contract Maker {
 
 	struct Cup {
 		// CDP owner
-		address  lad;
+		address lad;
 		// Locked collateral (in SKR)
-		uint256  ink;
+		uint256 ink;
 		// Outstanding normalised debt (tax only)
-		uint256  art;
+		uint256 art;
 		// Outstanding normalised debt
-		uint256  ire;
+		uint256 ire;
 	}
 
 	uint256 public cupi;
@@ -507,7 +507,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// TODO: SAFE MATH!
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup)  {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
