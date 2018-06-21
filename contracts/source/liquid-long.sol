@@ -255,7 +255,8 @@ contract Dai is ERC20 {
 }
 
 contract Weth is ERC20 {
-
+	function deposit() public payable;
+	function withdraw(uint wad) public;
 }
 
 contract Mkr is ERC20 {
@@ -272,6 +273,8 @@ contract Oasis {
 	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint offerId);
 	function getWorseOffer(uint id) public constant returns(uint offerId);
 	function getOffer(uint id) public constant returns (uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem);
+
+	function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount) public returns (uint fill_amt);
 }
 
 contract Medianizer {
@@ -290,13 +293,13 @@ contract Maker {
 
 	struct Cup {
 		// CDP owner
-		address  lad;
+		address lad;
 		// Locked collateral (in SKR)
-		uint256  ink;
+		uint256 ink;
 		// Outstanding normalised debt (tax only)
-		uint256  art;
+		uint256 art;
 		// Outstanding normalised debt
-		uint256  ire;
+		uint256 ire;
 	}
 
 	uint256 public cupi;
@@ -313,6 +316,7 @@ contract Maker {
 	function lock(bytes32 cup, uint wad) public;
 	function draw(bytes32 cup, uint wad) public;
 	function join(uint wad) public;
+	function wipe(bytes32 cup, uint wad) public;
 }
 
 contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
@@ -340,7 +344,9 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		bool userOwned;
 	}
 
-	constructor(Oasis _oasis, Maker _maker) public {
+	constructor(Oasis _oasis, Maker _maker) public payable {
+		providerFeePerEth = 0.01 ether;
+
 		oasis = _oasis;
 		maker = _maker;
 		dai = maker.sai();
@@ -358,6 +364,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		weth.approve(address(_maker), uint256(-1));
 		// Lock
 		peth.approve(address(_maker), uint256(-1));
+
+		if (msg.value > 0) {
+			weth.deposit.value(msg.value)();
+		}
 	}
 
 	function mul27(uint256 a, uint256 b) private pure returns (uint256) {
@@ -370,6 +380,23 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 
 	function div18(uint256 a, uint256 b) private pure returns (uint256) {
 		return (a * 10**18 + b / 2) / b;
+	}
+
+	function div27(uint256 a, uint256 b) private pure returns (uint256) {
+		return (a * 10**27 + b / 2) / b;
+	}
+
+	// Receive ETH from WETH withdraw
+	function () external payable {
+	}
+
+	function wethDeposit() public payable {
+		weth.deposit.value(msg.value)();
+	}
+
+	function wethWithdraw(uint256 amount) public onlyOwner {
+		weth.withdraw(amount);
+		owner.transfer(amount);
 	}
 
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
@@ -479,11 +506,49 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		return maker.cupi();
 	}
 
-	// TODO: everything
-	function openCdp(uint256 leverage, uint256 exchangeCostsInAttoeth, uint256 feesInAttoeth, uint256 affiliateFeeInAttoeth, address affiliateAddress) public payable returns (bytes32 _cup)  {
-		require(leverage >= 100 && leverage <= 300);
+	// TODO: SAFE MATH!
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup) {
+		require(_leverage >= 100 && _leverage <= 300);
+		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
+		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
+		uint256 _providerFeeInAttoeth = mul18(_loanInAttoeth, providerFeePerEth);
+		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
+		uint256 _drawInAttodai = mul18(_loanInAttoeth, uint256(maker.pip().read()));
+		uint256 _pethLockedInCdp = div27(_lockedInCdpInAttoeth, maker.per()) ;
+
+		// Convert ETH to WETH (only the value amount, excludes loan amount which is already WETH)
+		weth.deposit.value(_leverageSizeInAttoeth)();
+		// Open CDP
 		_cup = maker.open();
+		// Convert WETH into PETH
+		maker.join(_pethLockedInCdp);
+		// Store PETH in CDP
+		maker.lock(_cup, _pethLockedInCdp);
+		// Withdraw DAI from CDP
+		maker.draw(_cup, _drawInAttodai);
+
+		// Sell all drawn DAI
+		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
+		// SafeMath failure below catches not enough eth provided
+		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth).sub(_affiliateFeeInAttoeth);
+
+		if (_loanInAttoeth > _wethBoughtInAttoweth) {
+			weth.deposit.value(_loanInAttoeth - _wethBoughtInAttoweth)();
+		}
+
+		if (_providerFeeInAttoeth != 0) {
+			asyncSend(owner, _providerFeeInAttoeth);
+		}
+		if (_affiliateFeeInAttoeth != 0) {
+			asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
+		}
+
 		emit NewCup(msg.sender, _cup);
+		// Send the CDP to the user
 		maker.give(_cup, msg.sender);
+
+		if (_refundDue > 0) {
+			msg.sender.transfer(_refundDue);
+		}
 	}
 }
