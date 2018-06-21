@@ -540,7 +540,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 			asyncSend(owner, _providerFeeInAttoeth);
 		}
 		if (_affiliateFeeInAttoeth != 0) {
-				asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
+			asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
 		}
 
 		emit NewCup(msg.sender, _cup);
@@ -548,7 +548,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		maker.give(_cup, msg.sender);
 
 		if (_refundDue > 0) {
-				msg.sender.transfer(_refundDue);
+			msg.sender.transfer(_refundDue);
 		}
 	}
 }
