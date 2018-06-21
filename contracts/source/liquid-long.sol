@@ -255,7 +255,7 @@ contract Dai is ERC20 {
 }
 
 contract Weth is ERC20 {
-
+    function deposit() public payable;
 }
 
 contract Mkr is ERC20 {
@@ -272,6 +272,8 @@ contract Oasis {
 	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint offerId);
 	function getWorseOffer(uint id) public constant returns(uint offerId);
 	function getOffer(uint id) public constant returns (uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem);
+
+	function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount) public returns (uint fill_amt);
 }
 
 contract Medianizer {
@@ -313,6 +315,7 @@ contract Maker {
 	function lock(bytes32 cup, uint wad) public;
 	function draw(bytes32 cup, uint wad) public;
 	function join(uint wad) public;
+	function wipe(bytes32 cup, uint wad) public;
 }
 
 contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
@@ -370,6 +373,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 
 	function div18(uint256 a, uint256 b) private pure returns (uint256) {
 		return (a * 10**18 + b / 2) / b;
+	}
+
+	function div27(uint256 a, uint256 b) private pure returns (uint256) {
+		return (a * 10**27 + b / 2) / b;
 	}
 
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
@@ -479,10 +486,38 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		return maker.cupi();
 	}
 
-	// TODO: everything
-	function openCdp(uint256 leverage, uint256 exchangeCostsInAttoeth, uint256 feesInAttoeth, uint256 affiliateFeeInAttoeth, address affiliateAddress) public payable returns (bytes32 _cup)  {
-		require(leverage >= 100 && leverage <= 300);
+	// TODO: SAFE MATH!
+	function openCdp(uint256 _leverage, uint256 _leverageSize, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup)  {
+		require(_leverage >= 100 && _leverage <= 300);
+		uint256 _ethLockedInCdp = _leverageSize * _leverage / 100;
+		uint256 _ethLoan = _ethLockedInCdp - _leverageSize;
+		uint256 _providerFeeInAttoeth = _ethLoan * providerFeePerEth / 1 ether;
+		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
+		uint256 _drawInAttodai = mul18(_ethLoan, uint256(maker.pip().read()));
+
+		uint256 _pethLockedInCdp = div27(_ethLockedInCdp, maker.per()) ;
+
+		weth.deposit.value(_leverageSize)();
+
 		_cup = maker.open();
+		maker.join(_pethLockedInCdp);
+		maker.lock(_cup, _pethLockedInCdp);
+		maker.draw(_cup, _drawInAttodai);
+
+		uint256 _wethBought = oasis.sellAllAmount(dai, _drawInAttodai, weth, _drawInAttodai);
+
+		// SafeMath failure below catches not enough eth provided
+		uint256 _refundDue = msg.value.add(_wethBought).sub(_ethLockedInCdp).sub(_providerFeeInAttoeth).sub(_affiliateFeeInAttoeth);
+		if (_refundDue > 0) {
+				asyncSend(msg.sender, _refundDue);
+		}
+
+		asyncSend(owner, _providerFeeInAttoeth);
+
+		if (_affiliateFeeInAttoeth != 0) {
+				asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
+		}
+
 		emit NewCup(msg.sender, _cup);
 		maker.give(_cup, msg.sender);
 	}
