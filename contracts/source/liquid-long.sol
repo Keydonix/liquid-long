@@ -528,12 +528,12 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		maker.draw(_cup, _drawInAttodai);
 
 		// Sell all drawn DAI
-		uint256 _wethBought = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
+		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
 		// SafeMath failure below catches not enough eth provided
-		uint256 _refundDue = msg.value.add(_wethBought).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth).sub(_affiliateFeeInAttoeth);
+		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth).sub(_affiliateFeeInAttoeth);
 
-		if (_loanInAttoeth > _wethBought) {
-			weth.deposit.value(_loanInAttoeth - _wethBought)();
+		if (_loanInAttoeth > _wethBoughtInAttoweth) {
+			weth.deposit.value(_loanInAttoeth - _wethBoughtInAttoweth)();
 		}
 
 		if (_providerFeeInAttoeth != 0) {
