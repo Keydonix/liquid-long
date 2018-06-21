@@ -505,7 +505,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSize * _leverage / 100;
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSize;
-		uint256 _providerFeeInAttoeth = _loanInAttoeth * providerFeePerEth / 1 ether;
+		uint256 _providerFeeInAttoeth = mul18(_loanInAttoeth, providerFeePerEth);
 		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
 		uint256 _drawInAttodai = mul18(_loanInAttoeth, uint256(maker.pip().read()));
 		uint256 _pethLockedInCdp = div27(_lockedInCdpInAttoeth, maker.per()) ;
@@ -522,15 +522,15 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		maker.draw(_cup, _drawInAttodai);
 
 		// Sell all drawn DAI
-		uint256 _wethBought = oasis.sellAllAmount(dai, _drawInAttodai, weth, _drawInAttodai);
+		uint256 _wethBought = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
 		// SafeMath failure below catches not enough eth provided
 		uint256 _refundDue = msg.value.add(_wethBought).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth).sub(_affiliateFeeInAttoeth);
 
 		if (_loanInAttoeth > _wethBought) {
-		    weth.deposit.value(_loanInAttoeth - _wethBought)();
+			weth.deposit.value(_loanInAttoeth - _wethBought)();
 		}
 		if (_providerFeeInAttoeth != 0) {
-		    asyncSend(owner, _providerFeeInAttoeth);
+			asyncSend(owner, _providerFeeInAttoeth);
 		}
 		if (_affiliateFeeInAttoeth != 0) {
 				asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
