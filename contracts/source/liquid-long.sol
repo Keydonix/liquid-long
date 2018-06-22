@@ -529,7 +529,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// TODO: SAFE MATH!
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cupId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
@@ -541,13 +541,13 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		// Convert ETH to WETH (only the value amount, excludes loan amount which is already WETH)
 		weth.deposit.value(_leverageSizeInAttoeth)();
 		// Open CDP
-		_cup = maker.open();
+		_cupId = maker.open();
 		// Convert WETH into PETH
 		maker.join(_pethLockedInCdp);
 		// Store PETH in CDP
-		maker.lock(_cup, _pethLockedInCdp);
+		maker.lock(_cupId, _pethLockedInCdp);
 		// Withdraw DAI from CDP
-		maker.draw(_cup, _drawInAttodai);
+		maker.draw(_cupId, _drawInAttodai);
 
 		// Sell all drawn DAI
 		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
@@ -565,9 +565,9 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 			asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
 		}
 
-		emit NewCup(msg.sender, _cup);
+		emit NewCup(msg.sender, _cupId);
 		// Send the CDP to the user
-		maker.give(_cup, msg.sender);
+		maker.give(_cupId, msg.sender);
 
 		if (_refundDue > 0) {
 			msg.sender.transfer(_refundDue);
