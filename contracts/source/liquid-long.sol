@@ -319,11 +319,39 @@ contract Maker {
 	function wipe(bytes32 cup, uint wad) public;
 }
 
-contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
+contract CdpHolder is Ownable {
+	Maker public maker;
+	mapping(bytes32 => address) public cdpLastOwner;
+
+	constructor(Maker _maker) public {
+		maker = _maker;
+	}
+
+	function recordCdpOwnership(bytes32 _cupId) public {
+		(address _cdpOwner,,,) = maker.cups(bytes32(_cupId));
+		require(_cdpOwner == msg.sender);
+		cdpLastOwner[_cupId] = _cdpOwner;
+	}
+
+	function returnCdp(bytes32 _cupId) public {
+		address _cdpOwner = cdpLastOwner[_cupId];
+		require(_cdpOwner == msg.sender);
+		// Don't bother checking if contract is actual owner, this will throw
+		maker.give(_cupId, msg.sender);
+		cdpLastOwner[_cupId] = address(0);
+	}
+
+	function returnUnrecognizedCdp(bytes32 _cupId, address _user) onlyOwner public {
+		address _cdpOwner = cdpLastOwner[_cupId];
+		require(_cdpOwner == address(0));
+		maker.give(_cupId, _user);
+	}
+}
+
+contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 	using SafeMath for uint256;
 
 	uint256 public providerFeePerEth;
-	mapping(bytes32 => address) public cdpLastOwner;
 
 	Oasis public oasis;
 	Maker public maker;
@@ -346,6 +374,8 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	constructor(Oasis _oasis, Maker _maker) public payable {
+		CdpHolder(_maker);
+
 		providerFeePerEth = 0.01 ether;
 
 		oasis = _oasis;
@@ -398,26 +428,6 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	function wethWithdraw(uint256 amount) public onlyOwner {
 		weth.withdraw(amount);
 		owner.transfer(amount);
-	}
-
-	function recordCdpOwnership(bytes32 _cupId) public {
-		(address _cdpOwner,,,) = maker.cups(bytes32(_cupId));
-		require(_cdpOwner == msg.sender);
-		cdpLastOwner[_cupId] = _cdpOwner;
-	}
-
-	function returnCdp(bytes32 _cupId) public {
-		address _cdpOwner = cdpLastOwner[_cupId];
-		require(_cdpOwner == msg.sender);
-		// Don't bother checking if contract is actual owner, this will throw
-		maker.give(_cupId, msg.sender);
-		cdpLastOwner[_cupId] = address(0);
-	}
-
-	function returnUnrecognizedCdp(bytes32 _cupId, address _user) onlyOwner public {
-		address _cdpOwner = cdpLastOwner[_cupId];
-		require(_cdpOwner == address(0));
-		maker.give(_cupId, _user);
 	}
 
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
