@@ -418,7 +418,6 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		address _cdpOwner = cdpLastOwner[_cupId];
 		require(_cdpOwner == address(0));
 		maker.give(_cupId, _user);
-		cdpLastOwner[_cupId] = address(0);
 	}
 
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
