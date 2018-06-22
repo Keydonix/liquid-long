@@ -323,6 +323,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	using SafeMath for uint256;
 
 	uint256 public providerFeePerEth;
+	mapping(bytes32 => address) public cdpLastOwner;
 
 	Oasis public oasis;
 	Maker public maker;
@@ -397,6 +398,27 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	function wethWithdraw(uint256 amount) public onlyOwner {
 		weth.withdraw(amount);
 		owner.transfer(amount);
+	}
+
+	function recordCdpOwnership(bytes32 _cupId) public {
+		(address _cdpOwner,,,) = maker.cups(bytes32(_cupId));
+		require(_cdpOwner == msg.sender);
+		cdpLastOwner[_cupId] = _cdpOwner;
+	}
+
+	function returnCdp(bytes32 _cupId) public {
+		address _cdpOwner = cdpLastOwner[_cupId];
+		require(_cdpOwner == msg.sender);
+		// Don't bother checking if contract is actual owner, this will throw
+		maker.give(_cupId, msg.sender);
+		cdpLastOwner[_cupId] = address(0);
+	}
+
+	function returnUnrecognizedCdp(bytes32 _cupId, address _user) onlyOwner public {
+		address _cdpOwner = cdpLastOwner[_cupId];
+		require(_cdpOwner == address(0));
+		maker.give(_cupId, _user);
+		cdpLastOwner[_cupId] = address(0);
 	}
 
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
@@ -550,5 +572,19 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		if (_refundDue > 0) {
 			msg.sender.transfer(_refundDue);
 		}
+	}
+
+	// TODO: everything
+	function closeCdp(bytes32 _cupId) public payable returns (uint256 _costToCloseInAttoeth) {
+		address _cdpOwner = cdpLastOwner[_cupId];
+		require(_cdpOwner == msg.sender);
+
+		// Size up CDP
+		// Buy DAI off the books to close
+		// Ensure msg.value covers weth spent
+		// buy back spent weth with msg.value
+		// take fee + eth cost of mkr/gov
+		// refund remaining msg.value
+		// give back cdp
 	}
 }
