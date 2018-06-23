@@ -581,7 +581,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		maker.give(_cdpId, msg.sender);
 
 		if (_refundDue > 0) {
-			msg.sender.transfer(_refundDue);
+			require(msg.sender.call.value(_refundDue)());
 		}
 	}
 
