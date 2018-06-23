@@ -308,6 +308,7 @@ contract Maker {
 	function lad(bytes32 cup) public view returns (address);
 	function per() public view returns (uint ray);
 	function tab(bytes32 cup) public returns (uint);
+	function ink(bytes32 cup) public returns (uint);
 	function rap(bytes32 cup) public returns (uint);
 	function chi() public returns (uint);
 
@@ -319,7 +320,39 @@ contract Maker {
 	function wipe(bytes32 cup, uint wad) public;
 }
 
-contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
+contract CdpHolder is Ownable {
+	Maker public maker;
+	mapping(bytes32 => address) public cdpLastOwner;
+
+	constructor(Maker _maker) public {
+		maker = _maker;
+	}
+
+	function recordCdpOwnership(bytes32 _cdpId) public {
+		address _cdpOwner = maker.lad(bytes32(_cdpId));
+		cdpLastOwner[_cdpId] = _cdpOwner;
+	}
+
+	function returnCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public {
+		// Don't bother checking if contract is actual owner, this will throw
+		maker.give(_cdpId, msg.sender);
+		cdpLastOwner[_cdpId] = address(0);
+	}
+
+	function returnUnrecognizedCdp(bytes32 _cdpId, address _user) onlyOwner public {
+		address _cdpOwner = cdpLastOwner[_cdpId];
+		require(_cdpOwner == address(0));
+		maker.give(_cdpId, _user);
+	}
+
+	modifier onlyCdpOwner(bytes32 _cdpId) {
+		require(msg.sender == cdpLastOwner[_cdpId]);
+		_;
+	}
+
+}
+
+contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 	using SafeMath for uint256;
 
 	uint256 public providerFeePerEth;
@@ -344,7 +377,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		bool userOwned;
 	}
 
-	constructor(Oasis _oasis, Maker _maker) public payable {
+	constructor(Oasis _oasis, Maker _maker) CdpHolder(_maker) public payable {
 		providerFeePerEth = 0.01 ether;
 
 		oasis = _oasis;
@@ -470,7 +503,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		uint256 _cdpCount = cdpCount();
 		uint256 _matchCount = 0;
 		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
-			(address _cdpOwner,,,) = maker.cups(bytes32(_i));
+			address _cdpOwner = maker.lad(bytes32(_i));
 			if (_cdpOwner != _user) continue;
 			++_matchCount;
 		}
@@ -507,7 +540,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// TODO: SAFE MATH!
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cup) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
@@ -519,13 +552,13 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		// Convert ETH to WETH (only the value amount, excludes loan amount which is already WETH)
 		weth.deposit.value(_leverageSizeInAttoeth)();
 		// Open CDP
-		_cup = maker.open();
+		_cdpId = maker.open();
 		// Convert WETH into PETH
 		maker.join(_pethLockedInCdp);
 		// Store PETH in CDP
-		maker.lock(_cup, _pethLockedInCdp);
+		maker.lock(_cdpId, _pethLockedInCdp);
 		// Withdraw DAI from CDP
-		maker.draw(_cup, _drawInAttodai);
+		maker.draw(_cdpId, _drawInAttodai);
 
 		// Sell all drawn DAI
 		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
@@ -543,12 +576,25 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 			asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
 		}
 
-		emit NewCup(msg.sender, _cup);
+		emit NewCup(msg.sender, _cdpId);
 		// Send the CDP to the user
-		maker.give(_cup, msg.sender);
+		maker.give(_cdpId, msg.sender);
 
 		if (_refundDue > 0) {
-			msg.sender.transfer(_refundDue);
+			require(msg.sender.call.value(_refundDue)());
 		}
+	}
+
+	// TODO: everything
+	function closeCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public payable returns (uint256 _costToCloseInAttoeth) {
+		(, uint256 _collateralInAttopeth, uint256 _debtInAttodai, ) = maker.cups(bytes32(_cdpId));
+
+		// Size up CDP
+		// Buy DAI off the books to close
+		// Ensure msg.value covers weth spent
+		// buy back spent weth with msg.value
+		// take fee + eth cost of mkr/gov
+		// refund remaining msg.value
+		// give back cdp
 	}
 }
