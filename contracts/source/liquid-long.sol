@@ -308,6 +308,7 @@ contract Maker {
 	function lad(bytes32 cup) public view returns (address);
 	function per() public view returns (uint ray);
 	function tab(bytes32 cup) public returns (uint);
+	function ink(bytes32 cup) public returns (uint);
 	function rap(bytes32 cup) public returns (uint);
 	function chi() public returns (uint);
 
@@ -332,9 +333,7 @@ contract CdpHolder is Ownable {
 		cdpLastOwner[_cdpId] = _cdpOwner;
 	}
 
-	function returnCdp(bytes32 _cdpId) public {
-		address _cdpOwner = cdpLastOwner[_cdpId];
-		require(_cdpOwner == msg.sender);
+	function returnCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public {
 		// Don't bother checking if contract is actual owner, this will throw
 		maker.give(_cdpId, msg.sender);
 		cdpLastOwner[_cdpId] = address(0);
@@ -345,6 +344,12 @@ contract CdpHolder is Ownable {
 		require(_cdpOwner == address(0));
 		maker.give(_cdpId, _user);
 	}
+
+	modifier onlyCdpOwner(bytes32 _cdpId) {
+		require(msg.sender == cdpLastOwner[_cdpId]);
+		_;
+	}
+
 }
 
 contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
@@ -581,10 +586,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 	}
 
 	// TODO: everything
-	function closeCdp(bytes32 _cdpId) public payable returns (uint256 _costToCloseInAttoeth) {
-		address _cdpOwner = cdpLastOwner[_cdpId];
-		require(_cdpOwner == msg.sender);
-
+	function closeCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public payable returns (uint256 _costToCloseInAttoeth) {
 		(, uint256 _collateralInAttopeth, uint256 _debtInAttodai, ) = maker.cups(bytes32(_cdpId));
 
 		// Size up CDP
