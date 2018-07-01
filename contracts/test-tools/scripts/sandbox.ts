@@ -1,4 +1,5 @@
-import { Wallet, providers, Contract, utils } from 'ethers'
+import { Wallet, providers, utils } from 'ethers'
+import { LiquidLong } from '../../output/liquid-long'
 
 const liquidLongAbi = [
 	{
@@ -2954,19 +2955,37 @@ const oasisAbi = [
 ]
 
 async function doStuff() {
-	const provider = new providers.JsonRpcProvider('http://localhost:1235', { chainId: 4173, ensAddress: '', name: 'dev' })
+	const provider = new providers.JsonRpcProvider('http://localhost:1235', 4173)
 	const wallet = new Wallet('0xfae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a', provider)
-	const liquidLong = new Contract('0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3', liquidLongAbi, wallet)
-	const maker = new Contract('0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6', makerAbi, wallet)
-	const oasis = new Contract('0x3c6721551c2ba3973560aef3e11d34ce05db4047', oasisAbi, wallet)
+	const liquidLong = new LiquidLong({
+		keccak256: utf8String => utils.keccak256(utils.toUtf8Bytes(utf8String)),
+		encodeParams: (abiParameters, parameters) => new utils.AbiCoder().encode(abiParameters.inputs, parameters).substr(2),
+		decodeParams: (abiParameters, encoded) => new utils.AbiCoder().decode(abiParameters, encoded),
+		getDefaultAddress: async () => (await provider.listAccounts())[0],
+		call: async transaction => await provider.call(transaction),
+		estimateGas: async transaction => await provider.estimateGas(transaction),
+		signTransaction: async transaction => await wallet.sign(transaction),
+		sendSignedTransaction: async signedTransaction => {
+			const transactionResponse = await provider.sendTransaction(signedTransaction)
+			await transactionResponse.wait()
+			const transactionReceipt = await provider.getTransactionReceipt(transactionResponse.hash!)
+			return { status: transactionReceipt.status! }
+		},
+	}, '0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3', utils.bigNumberify(1000000000))
+	// const maker = new Contract('0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6', makerAbi, wallet)
+	// const oasis = new Contract('0x3c6721551c2ba3973560aef3e11d34ce05db4047', oasisAbi, wallet)
 
-	// const result = await contract.functions.getCdps('0x913dA4198E6bE1D5f5E4a40D0667f70C0B5430Eb', 0, 100)
-	const debtInDai = await maker.functions.tab('0x0000000000000000000000000000000000000000000000000000000000000001')
-	console.log(`debtInDai: ${debtInDai.div('1000000000').toNumber() / 1000000000}`)
-	let costToBuyDaiInEth = await liquidLong.functions.estimateDaiPurchaseCosts(debtInDai)
-	console.log(`costToBuyDaiInEth: ${costToBuyDaiInEth.div('1000000000').toNumber() / 1000000000}`)
-	const result = await liquidLong.functions.getCdps('0x913da4198e6be1d5f5e4a40d0667f70c0b5430eb', 0, 100)
-	console.log(result)
+	const oasis = await liquidLong.oasis_({ sender: '0x0000000000000000000000000000000000000000' })
+	console.log(oasis)
+	const cdpCount = await liquidLong.cdpCount_()
+	console.log(cdpCount.toString())
+	const ethPrice = await liquidLong.ethPriceInUsd_()
+	console.log(ethPrice.toString())
+	const cdps = await liquidLong.getCdps_('0x913dA4198E6bE1D5f5E4a40D0667f70C0B5430Eb', utils.bigNumberify(0), utils.bigNumberify(100))
+	console.log(cdps[0].id.toString())
+	const daiPurchaseEstimate = await liquidLong.estimateDaiPurchaseCosts_(utils.bigNumberify(1).mul('1000000000000000000'))
+	console.log(daiPurchaseEstimate._wethPaid.div(1000000000).toNumber() / 1000000000)
+	console.log(daiPurchaseEstimate._daiBought.div(1000000000).toNumber() / 1000000000)
 }
 
 doStuff().then(() => {

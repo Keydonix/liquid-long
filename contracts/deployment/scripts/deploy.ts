@@ -4,10 +4,10 @@ import { PrivateKey } from '../libraries/PrivateKey'
 import { ContractCompiler } from '../libraries/ContractCompiler'
 import { ContractDeployer } from '../libraries/ContractDeployer'
 import { sleep } from '../libraries/Utils';
-import { utils, providers } from 'ethers'
+import { providers } from 'ethers'
 
 async function spinUntilConnected(jsonRpcAddress: string) {
-	const provider = new providers.JsonRpcProvider(jsonRpcAddress, { chainId: 4173, ensAddress: '', name: 'dev' })
+	const provider = new providers.JsonRpcProvider(jsonRpcAddress, 4173)
 	while (true) {
 		try {
 			console.log(`attempting to connect to Ethereum node at ${jsonRpcAddress}...`)

@@ -1,9 +1,8 @@
 import {PrivateKey} from '../libraries/PrivateKey'
 import {SaiMom, SaiTub} from '../libraries/ContractInterfaces'
-import {providers, Wallet} from 'ethers'
-import BN = require("bn.js");
+import { providers, Wallet, utils } from 'ethers'
 
-const ETHER = new BN(10).pow(new BN(18));
+const ETHER = new utils.BigNumber(10).pow(new utils.BigNumber(18));
 
 function getEnv(name: string): string {
 	const value = process.env[name];
@@ -25,12 +24,12 @@ async function doStuff() {
 	const momContract = new SaiMom(momAddress, wallet, gasPriceInNanoeth);
 
 	const oldValue = (await makerContract.mat_());
-	console.log("Old mat value:", oldValue.toString(10));
+	console.log("Old mat value:", oldValue.toString());
 
-	await momContract.setMat(new BN("1400000000").mul(ETHER));
+	await momContract.setMat(new utils.BigNumber("1400000000").mul(ETHER));
 
 	const newValue = (await makerContract.mat_());
-	console.log("New mat value:", newValue.toString(10));
+	console.log("New mat value:", newValue.toString());
 }
 
 doStuff().then(() => {
