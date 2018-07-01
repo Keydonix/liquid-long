@@ -1,0 +1,6 @@
+{
+	"files.exclude": {
+		"**/.folder-empty-in-git": true,
+		"LICENSE": true,
+	}
+}

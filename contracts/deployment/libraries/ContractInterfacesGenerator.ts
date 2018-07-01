@@ -205,7 +205,8 @@ ${contractMethods.join("\n\n")}
 	private toTsReturnTypeString(abiParameters: AbiParameter[]): string {
 		if (abiParameters.length === 0) return `void`
 		else if (abiParameters.length === 1) return this.toTsTypeString(abiParameters[0])
-		else return `{${abiParameters.map(this.toTsNameAndTypeString.bind(this, 'out')).join(', ')}}`
+		else if (!abiParameters.every(abiParameter => !!abiParameter.name)) throw new Error(`Functions with multiple return values must name them all.`)
+		else return `{${abiParameters.map(abiParameter => `${abiParameter.name}: ${this.toTsTypeString(abiParameter)}`).join(', ')}}`
 	}
 
 	private toTsTypeString(abiParameter: AbiParameter): string {
@@ -247,22 +248,18 @@ ${contractMethods.join("\n\n")}
 		}
 	}
 
-	private toTsNameAndTypeString = (unknownPrefix: string, abiParameter: AbiParameter, i: number) => {
-		if (!abiParameter.name) return `${unknownPrefix}${i}: ${this.toTsTypeString(abiParameter)}`
-		else if (abiParameter.name.startsWith('_')) return `${abiParameter.name.substr(1)}: ${this.toTsTypeString(abiParameter)}`
-		else return `${abiParameter.name}: ${this.toTsTypeString(abiParameter)}`
-	}
-
 	private toArgNameString(abiFunction: AbiFunction) {
-		return abiFunction.inputs.map((v, i) => {
-			if (!v.name) return `arg${i}`
-			else if (v.name.startsWith('_')) return v.name.substr(1)
-			else return v.name
-		}).join(", ")
+		return abiFunction.inputs.map(this.toParamNameString).join(", ")
 	}
 
 	private toParamsString(abiFunction: AbiFunction) {
 		if (abiFunction.inputs.length == 0) return ''
-		return abiFunction.inputs.map(this.toTsNameAndTypeString.bind(this, 'arg')).join(', ') + ', '
+		return abiFunction.inputs.map((abiParameter, i) => `${this.toParamNameString(abiParameter, i)}: ${this.toTsTypeString(abiParameter)}`).join(', ') + ', '
+	}
+
+	private toParamNameString(abiParameter: AbiParameter, index: number) {
+		if (!abiParameter.name) return `arg${index}`
+		else if (abiParameter.name.startsWith('_')) return abiParameter.name.substr(1)
+		else return abiParameter.name
 	}
 }

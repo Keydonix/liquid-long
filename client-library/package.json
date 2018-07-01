@@ -1,0 +1,32 @@
+{
+	"name": "liquid-long-client-library",
+	"version": "1.0.0",
+	"description": "A client library for Liquid Long.",
+	"main": "source/index.js",
+	"scripts": {
+		"test": "mocha --require ts-node/register --timeout 999999 --colors tests/**/*.ts"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Keydonix/liquid-long.git"
+	},
+	"author": "Keydonix",
+	"license": "Unlicense",
+	"bugs": {
+		"url": "https://github.com/Keydonix/liquid-long/issues"
+	},
+	"homepage": "https://github.com/Keydonix/liquid-long#readme",
+	"devDependencies": {
+		"@types/chai": "4.1.4",
+		"@types/chai-as-promised": "7.1.0",
+		"@types/mocha": "5.2.3",
+		"chai": "4.1.2",
+		"chai-as-promised": "7.1.1",
+		"mocha": "5.2.0",
+		"ts-node": "7.0.0",
+		"typescript": "2.9.2"
+	},
+	"dependencies": {
+		"ethers": "github:ethers-io/ethers.js#typescript"
+	}
+}
