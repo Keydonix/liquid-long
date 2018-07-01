@@ -1,0 +1,1 @@
+Do not delete unless `generated` directory existence is no longer required for build process.  This file keeps the directory from being deleted.
