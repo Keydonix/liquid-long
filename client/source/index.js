@@ -241,11 +241,43 @@ export class EthereumClient {
 		}
 
 		/**
+		 * @param {Transaction} transaction
+		 * @returns {Promise<number>}
+		 */
+		this.ethEstimateGas = async (transaction) => {
+			if (transaction.from === undefined) throw new Error(`gas estimation requires a 'from'`)
+			const payload = constructJsonRpcPayload('eth_estimateGas', [transaction, 'latest'])
+			const result = await submitJsonRpc(payload)
+			const gasEstimate = result.substring(2)
+			assertIsHexEncodedNumber(gasEstimate)
+			return parseInt(gasEstimate, 16)
+		}
+
+		this.ethGasPrice = async (transaction) => {
+
+		}
+
+		/**
+		 *
+		 * @param {Transaction} transaction
+		 * @returns {Promise<TransactionReceipt>}
+		 */
+		this.ethSendTransaction = async (transaction) => {
+			if (transaction.from === undefined) {
+				const coinbase = await this.ethCoinbase()
+				if (coinbase === null) throw new Error(`account required to start a transaction`)
+				transaction.from = `0x${coinbase}`
+			}
+			if (transaction.gas === undefined) transaction.gas = `0x${(await this.ethEstimateGas(transaction)).toString(16)}`
+			if (transaction.gasPrice === undefined) transaction.gasPrice = await this.ethGasPrice()
+		}
+
+		/**
 		 * @returns {Promise<string|null>}
 		 */
 		this.ethCoinbase = async () => {
 			const payload = constructJsonRpcPayload('eth_coinbase', [])
-			const result = await submitJsonRpc(payload)
+			const result = await submitJsonRpc(payload, true)
 			if (result === null) return null
 			const coinbase = result.substring(2)
 			if (coinbase === '') return null
@@ -726,11 +758,19 @@ export class LiquidLong {
 
 		/**
 		 * @param {number} leverageMultiplier
-		 * @param {number} leverageSize
-		 * @param {number} limitPriceOfEthInDai
+		 * @param {number} leverageSizeInAttoeth
+		 * @param {number} exchangeCostInAttoeth
+		 * @param {number} allowedFeeInAttoeth
 		 */
-		this.createCdp = async (leverageMultiplier, leverageSize, limitPriceOfEthInDai) => {
-			// TODO: author and call
+		this.createCdp = async (leverageMultiplier, leverageSizeInAttoeth, exchangeCostInAttoeth, allowedFeeInAttoeth) => {
+			// openCdp(uint256,uint256,uint256,uint256,address)
+			const openCdpSignatureHash = '79c30e49'
+			const transaction = {
+				to: `0x${contractAddresses.getLiquidLongAddress()}`,
+				value: `0x${(leverageSizeInAttoeth + exchangeCostInAttoeth + allowedFeeInAttoeth)}`,
+				data: `0x${openCdpSignatureHash}${abiEncodeNumber(round(leverageMultiplier * 100, 0))}${abiEncodeNumber(leverageSizeInAttoeth)}${abiEncodeNumber(allowedFeeInAttoeth)}${abiEncodeNumber(0)}${leftPad64Zeros('')}`
+			}
+			const transactionReceipt = await ethereumClient.ethSendTransaction(transaction)
 		}
 
 		Object.freeze(this)
