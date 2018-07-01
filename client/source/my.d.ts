@@ -1,3 +1,7 @@
+interface Log {
+
+}
+
 interface Transaction {
 	to: string
 	from?: string
@@ -7,7 +11,21 @@ interface Transaction {
 	data: string
 }
 
-type JsonRpcMethods = 'eth_call' | 'net_version' | 'eth_coinbase'
+interface TransactionReceipt {
+	blockHash: string
+	blockNumber: string
+	contractAddress: string
+	cumulativeGasUsed: string
+	gasUsed: string
+	logs: Array<Log>
+	logsBloom: string
+	root: string
+	status: string
+	transactionHash: string
+	transactionIndex: string
+}
+
+type JsonRpcMethods = 'eth_call' | 'net_version' | 'eth_coinbase' | 'eth_estimateGas' | 'eth_sendTransaction'
 
 interface JsonRpcRequest {
 	jsonrpc: '2.0'
