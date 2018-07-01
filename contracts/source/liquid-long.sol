@@ -586,8 +586,8 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 	}
 
 	// TODO: everything
-	function closeCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public payable returns (uint256 _costToCloseInAttoeth) {
-		(, uint256 _collateralInAttopeth, uint256 _debtInAttodai, ) = maker.cups(bytes32(_cdpId));
+	function closeCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public payable returns (uint256 /*_costToCloseInAttoeth*/) {
+		/*(, uint256 _collateralInAttopeth, uint256 _debtInAttodai, ) = */maker.cups(bytes32(_cdpId));
 
 		// Size up CDP
 		// Buy DAI off the books to close

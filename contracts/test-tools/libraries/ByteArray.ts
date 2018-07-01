@@ -1,4 +1,4 @@
-import { utils } from 'ethers'
+import { utils } from "ethers";
 
 export class ByteArray extends Uint8Array {
 	private readonly hexEncodeArray = [ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' ];

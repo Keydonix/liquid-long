@@ -1,5 +1,7 @@
 FROM node:8-alpine
 
+RUN apk update && apk add git
+
 # cache dependencies when possible
 COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json

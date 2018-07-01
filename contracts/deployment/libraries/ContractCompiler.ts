@@ -1,5 +1,3 @@
-import { Abi } from 'ethereum'
-import fs = require('fs')
 import readFile = require('fs-readfile-promise');
 import path = require('path')
 import * as recursiveReadDir from 'recursive-readdir'
