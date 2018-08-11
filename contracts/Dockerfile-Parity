@@ -1,0 +1,33 @@
+FROM keydonix/parity-instantseal-maker as chain-source
+
+
+FROM keydonix/parity-instantseal-node8 as builder
+
+ARG ETHEREUM_HTTP
+ARG ETHEREUM_GAS_PRICE_IN_NANOETH
+ARG ETHEREUM_PRIVATE_KEY
+ARG ETHEREUM_OASIS_ADDRESS
+ARG ETHEREUM_MAKER_ADRESS
+
+RUN apt-get update && apt-get --yes install git
+
+COPY --from=chain-source /parity/chains /parity/chains
+
+# cache dependencies when possible
+COPY package.json /app/package.json
+COPY package-lock.json /app/package-lock.json
+WORKDIR /app
+RUN npm install
+
+COPY deployment/ /app/deployment/
+COPY source/ /app/source/
+WORKDIR /app
+
+RUN /parity/parity --config /parity/config.toml & \
+	npx ts-node --project deployment/tsconfig.json deployment/scripts/deploy.ts \
+	&& kill -TERM $(pidof parity)
+
+
+FROM keydonix/parity-instantseal
+
+COPY --from=builder /parity/chains /parity/chains

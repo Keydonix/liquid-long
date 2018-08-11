@@ -1,0 +1,33 @@
+FROM keydonix/geth-clique-maker as chain-source
+
+
+FROM keydonix/geth-clique-node8-solc as builder
+
+ARG ETHEREUM_HTTP
+ARG ETHEREUM_GAS_PRICE_IN_NANOETH
+ARG ETHEREUM_PRIVATE_KEY
+ARG ETHEREUM_OASIS_ADDRESS
+ARG ETHEREUM_MAKER_ADRESS
+
+COPY --from=chain-source /geth/chain /geth/chain
+
+# cache dependencies when possible
+COPY package.json /app/package.json
+COPY package-lock.json /app/package-lock.json
+WORKDIR /app
+RUN npm install
+
+COPY deployment/ /app/deployment/
+COPY source/ /app/source/
+WORKDIR /app
+
+RUN cd / \
+	&& /start.sh & \
+	cd /app \
+	&& npx ts-node --project deployment/tsconfig.json deployment/scripts/deploy.ts \
+	&& kill -TERM $(pidof geth)
+
+
+FROM keydonix/geth-clique
+
+COPY --from=builder /geth/chain /geth/chain
