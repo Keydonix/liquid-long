@@ -4,7 +4,6 @@
 		"module": "commonjs",
 		"sourceMap": true,
 		"outDir": "output",
-		"rootDir": ".",
 		"strict": true,
 		"noEmitOnError": true,
 		"noImplicitAny": true,
@@ -18,5 +17,6 @@
 	"include": [
 		"source/**/*.ts",
 		"tests/**/*.ts",
+		"integration-tests/**/*.ts",
 	]
 }
