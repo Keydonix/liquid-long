@@ -1,4 +1,3 @@
 **/node_modules/
+**/output/
 /client-library/source/generated/
-/client-library/output/
-/contracts/output/

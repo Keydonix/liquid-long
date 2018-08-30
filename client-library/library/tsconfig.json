@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"target": "es2017",
+		"module": "commonjs",
+		"moduleResolution": "node",
+		"outDir": "output",
+		"rootDir": "source",
+		"sourceMap": true,
+		"inlineSources": true,
+		"strict": true,
+		"noEmitOnError": true,
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"noImplicitReturns": true,
+		"declaration": true,
+		"lib": [ "es6" ],
+	},
+	"include": [
+		"**/*.ts",
+	]
+}

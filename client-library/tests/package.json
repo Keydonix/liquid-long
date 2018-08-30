@@ -1,0 +1,25 @@
+{
+	"private": true,
+	"scripts": {
+		"build-dependency": "cd ../library && npm install && tsc",
+		"unlink-dependency": "npm unlink ../library",
+		"link-dependency": "npm link ../library",
+		"preinstall": "npm run unlink-dependency",
+		"postinstall": "npm run build-dependency && npm run link-dependency",
+		"test-no-build": "mocha --require ts-node/register --colors source/**/*.ts",
+		"test": "npm run build-dependency && npm run test-no-build"
+	},
+	"dependencies": {
+		"@types/chai": "4.1.4",
+		"@types/chai-as-promised": "7.1.0",
+		"@types/mocha": "5.2.3",
+		"@types/node": "10.5.8",
+		"chai": "4.1.2",
+		"chai-as-promised": "7.1.1",
+		"ethers": "4.0.0-beta.13",
+		"mocha": "5.2.0",
+		"source-map-support": "0.5.8",
+		"ts-node": "7.0.0",
+		"typescript": "3.0.0-rc"
+	}
+}

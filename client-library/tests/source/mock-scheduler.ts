@@ -1,4 +1,4 @@
-import { Scheduler } from '../source/scheduler'
+import { Scheduler } from '@keydonix/liquid-long-client-library'
 
 function delay(milliseconds: number): Promise<void> {
 	return new Promise(resolve => setTimeout(() => resolve(), milliseconds))

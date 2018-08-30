@@ -2,12 +2,7 @@
 	"name": "@keydonix/liquid-long-client-library",
 	"version": "1.1.1",
 	"description": "A client library for Liquid Long.",
-	"main": "output/source/index.js",
-	"scripts": {
-		"build": "tsc",
-		"test": "mocha --require ts-node/register --colors tests/**/*.ts",
-		"prepublishOnly": "tsc && mocha --colors output/tests/**/*.js"
-	},
+	"main": "output/index.js",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Keydonix/liquid-long.git"
@@ -18,19 +13,16 @@
 		"url": "https://github.com/Keydonix/liquid-long/issues"
 	},
 	"homepage": "https://github.com/Keydonix/liquid-long#readme",
+	"scripts": {
+		"test": "cd ../tests && npm install && npm run test",
+		"test-no-build": "cd ../tests && npm run test-no-build",
+		"prepublishOnly": "npm run test"
+	},
 	"devDependencies": {
-		"@types/chai": "4.1.4",
-		"@types/chai-as-promised": "7.1.0",
-		"@types/mocha": "5.2.3",
 		"@types/node": "10.5.8",
-		"chai": "4.1.2",
-		"chai-as-promised": "7.1.1",
-		"mocha": "5.2.0",
-		"source-map-support": "0.5.8",
-		"ts-node": "7.0.0",
-		"typescript": "2.9.2"
+		"typescript": "3.0.0-rc"
 	},
 	"dependencies": {
-		"ethers": "^4.0.0-beta.11"
+		"ethers": "4.0.0-beta.13"
 	}
 }
