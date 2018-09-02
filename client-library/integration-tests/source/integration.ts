@@ -2,7 +2,7 @@ require('source-map-support').install()
 
 import 'mocha'
 import { expect } from 'chai'
-import { LiquidLong, TimeoutScheduler, JsonRpcProvider, Scheduler, Provider } from '../source/index'
+import { LiquidLong, TimeoutScheduler, JsonRpcProvider, Scheduler, Provider } from '@keydonix/liquid-long-client-library'
 
 describe('getEthPriceInUsd', async () => {
 	let ethereumAddress: string

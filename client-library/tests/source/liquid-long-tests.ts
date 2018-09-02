@@ -1,6 +1,6 @@
 import 'mocha'
 import { expect } from 'chai'
-import { LiquidLong } from '../source/index'
+import { LiquidLong } from '@keydonix/liquid-long-client-library'
 import { MockProvider } from './mock-provider'
 import { MockScheduler } from './mock-scheduler';
 

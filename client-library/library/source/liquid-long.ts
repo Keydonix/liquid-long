@@ -2,7 +2,8 @@ import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
 import { LiquidLongDependenciesEthers, Provider } from './liquid-long-ethers-impl'
 import { Scheduler } from './scheduler'
 import { PolledValue } from './polled-value'
-import { BigNumber, bigNumberify } from 'ethers/utils'
+import { BigNumber } from 'ethers'
+import { bigNumberify } from 'ethers/utils'
 
 export class LiquidLong {
 	private readonly contract: LiquidLongContract<BigNumber>

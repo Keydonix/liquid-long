@@ -1,0 +1,15 @@
+{
+	"private": true,
+	"dependencies": {
+		"@types/chai": "4.1.4",
+		"@types/chai-as-promised": "7.1.0",
+		"@types/mocha": "5.2.3",
+		"@types/node": "10.5.8",
+		"chai": "4.1.2",
+		"chai-as-promised": "7.1.1",
+		"mocha": "5.2.0",
+		"source-map-support": "0.5.8",
+		"ts-node": "7.0.0",
+		"typescript": "3.0.0-rc"
+	}
+}
