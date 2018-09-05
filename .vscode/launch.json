@@ -94,9 +94,10 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Client Library Tests",
-			"cwd": "${workspaceFolder}/client-library",
-			"program": "${workspaceFolder}/client-library/node_modules/mocha/bin/_mocha",
-			"args": [ "--require", "ts-node/register", "--timeout", "999999", "--colors", "tests/**/*.ts" ]
+			"cwd": "${workspaceFolder}/client-library/tests/",
+			"program": "${workspaceFolder}/client-library/tests/node_modules/mocha/bin/_mocha",
+			"args": [ "--require", "ts-node/register", "--timeout", "999999", "--colors", "source/**/*.ts" ],
+			"preLaunchTask": "build client library",
 		}
 	]
 }
