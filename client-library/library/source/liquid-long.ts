@@ -5,6 +5,8 @@ import { PolledValue } from './polled-value'
 import { BigNumber } from 'ethers'
 import { bigNumberify } from 'ethers/utils'
 
+const ETHER = bigNumberify("1000000000000000000")
+
 export class LiquidLong {
 	private readonly contract: LiquidLongContract<BigNumber>
 	private readonly ethPriceInUsd: PolledValue<number>
@@ -72,7 +74,7 @@ export class LiquidLong {
 		const daiPerEth = this.ethPriceInUsd.cached
 		const loanSizeInEth = this.getLoanSizeInEth(leverageMultiplier, leverageSizeInEth)
 		const daiToSell = loanSizeInEth * daiPerEth
-		const attodaiToSell = bigNumberify(daiToSell * 1e9).mul(1e9)
+		const attodaiToSell = bigNumberify(daiToSell).mul(ETHER)
 		const result = await this.contract.estimateDaiSaleProceeds_(attodaiToSell)
 		const daiSaleProceedsInEth = result._wethBought.div(1e9).toNumber() / 1e9
 		const estimatedCostInEth = loanSizeInEth - daiSaleProceedsInEth
@@ -83,8 +85,8 @@ export class LiquidLong {
 
 	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<void> => {
 		const leverageMultiplierInPercents = bigNumberify(Math.round(leverageMultiplier * 100))
-		const leverageSizeInAttoeth = bigNumberify(leverageSizeInEth * 1e18)
-		const allowedFeeInAttoeth = bigNumberify(feeLimitInEth * 1e18)
+		const leverageSizeInAttoeth = bigNumberify(leverageSizeInEth).mul(ETHER)
+		const allowedFeeInAttoeth = bigNumberify(feeLimitInEth).mul(ETHER)
 		const affiliateFeeInAttoeth = bigNumberify(0)
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress)
