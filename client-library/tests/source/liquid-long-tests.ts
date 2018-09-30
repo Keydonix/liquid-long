@@ -32,6 +32,24 @@ describe('LiquidLong', async () => {
 		})
 	})
 
+	describe('getLiquidationPenaltyPercent', async () => {
+		const tests = [
+			{ percent: -1, multiplier: 1 },
+			{ percent: -0.8557, multiplier: 1.4 },
+			{ percent: -0.815, multiplier: 1.5 },
+			{ percent: -0.5975, multiplier: 2},
+			{ percent: -0.367, multiplier: 2.5 },
+			{ percent: -0.13, multiplier: 3},
+		]
+		tests.forEach(test => {
+			it(`should return ${test.percent} percent for ${test.multiplier}x multiplier`, async () => {
+				const liquidationPriceInUsd = liquidLong.getLiquidationPenaltyPercent(test.multiplier)
+
+				expect(liquidationPriceInUsd).to.be.closeTo(test.percent, 0.001)
+			})
+		})
+	})
+
 	describe('getLiquidationPriceInUsd', async () => {
 		it('should return floating point number representation', async () => {
 			mockProvider.setEthPriceInUsd(543.21)
