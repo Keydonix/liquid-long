@@ -68,6 +68,12 @@ export class LiquidLong {
 		return feeInEth
 	}
 
+	// TODO verify this math with a run through of a liquidation
+	public getLiquidationPenaltyPercent = (leverageMultiplier: number): number => {
+		const liquidationAsPercentOfPrice = 1.5 - 1.5 / leverageMultiplier
+		return leverageMultiplier * (liquidationAsPercentOfPrice * (1 - 0.13 / leverageMultiplier) - 1)
+	}
+
 	public getEstimatedCostsInEth = async (leverageMultiplier: number, leverageSizeInEth: number): Promise<{low: number, high: number}> => {
 		const daiPerEth = this.ethPriceInUsd.cached
 		const loanSizeInEth = this.getLoanSizeInEth(leverageMultiplier, leverageSizeInEth)
