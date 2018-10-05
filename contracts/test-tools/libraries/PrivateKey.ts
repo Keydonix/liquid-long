@@ -1,5 +1,5 @@
 import { ByteArray } from './ByteArray'
-import { utils } from 'ethers'
+import { arrayify } from 'ethers/utils'
 
 export class PrivateKey extends ByteArray {
 	constructor(other: Uint8Array) {
@@ -9,6 +9,6 @@ export class PrivateKey extends ByteArray {
 	static fromHexString(input: string) {
 		const match = /^(?:0x)?([a-zA-Z0-9]{64})$/.exec(input)
 		if (match === null) throw new Error(`${input} must be a 64 character hex string optionally prefixed with 0x`)
-		return new PrivateKey(utils.arrayify(`0x${match[1]}`))
+		return new PrivateKey(arrayify(`0x${match[1]}`))
 	}
 }
