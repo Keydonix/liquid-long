@@ -1,7 +1,6 @@
 import { Dependencies, AbiFunction, AbiParameter, Transaction } from './generated/liquid-long'
-import { BigNumber, AbiCoder } from 'ethers'
-import { keccak256, toUtf8Bytes } from 'ethers/utils'
-import { TransactionResponse, TransactionRequest, TransactionReceipt } from 'ethers/types';
+import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
+import { TransactionResponse, TransactionRequest, TransactionReceipt } from 'ethers/providers';
 
 export interface Provider {
 	listAccounts(): Promise<Array<string>>

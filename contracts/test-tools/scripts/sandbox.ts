@@ -1,4 +1,6 @@
-import { Wallet, providers, utils } from 'ethers'
+import { Wallet } from 'ethers/wallet'
+import { JsonRpcProvider } from 'ethers/providers'
+import { bigNumberify, keccak256, toUtf8Bytes, AbiCoder } from 'ethers/utils'
 import { LiquidLong } from '../../output/liquid-long'
 
 const liquidLongAbi = [
@@ -2955,12 +2957,12 @@ const oasisAbi = [
 ]
 
 async function doStuff() {
-	const provider = new providers.JsonRpcProvider('http://localhost:1235', 4173)
+	const provider = new JsonRpcProvider('http://localhost:1235', 4173)
 	const wallet = new Wallet('0xfae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a', provider)
 	const liquidLong = new LiquidLong({
-		keccak256: utf8String => utils.keccak256(utils.toUtf8Bytes(utf8String)),
-		encodeParams: (abiParameters, parameters) => new utils.AbiCoder().encode(abiParameters.inputs, parameters).substr(2),
-		decodeParams: (abiParameters, encoded) => new utils.AbiCoder().decode(abiParameters, encoded),
+		keccak256: utf8String => keccak256(toUtf8Bytes(utf8String)),
+		encodeParams: (abiParameters, parameters) => new AbiCoder().encode(abiParameters.inputs, parameters).substr(2),
+		decodeParams: (abiParameters, encoded) => new AbiCoder().decode(abiParameters, encoded),
 		getDefaultAddress: async () => (await provider.listAccounts())[0],
 		call: async transaction => await provider.call(transaction),
 		estimateGas: async transaction => await provider.estimateGas(transaction),
@@ -2971,7 +2973,7 @@ async function doStuff() {
 			const transactionReceipt = await provider.getTransactionReceipt(transactionResponse.hash!)
 			return { status: transactionReceipt.status! }
 		},
-	}, '0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3', utils.bigNumberify(1000000000))
+	}, '0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3', bigNumberify(1000000000))
 	// const maker = new Contract('0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6', makerAbi, wallet)
 	// const oasis = new Contract('0x3c6721551c2ba3973560aef3e11d34ce05db4047', oasisAbi, wallet)
 
@@ -2981,9 +2983,9 @@ async function doStuff() {
 	console.log(cdpCount.toString())
 	const ethPrice = await liquidLong.ethPriceInUsd_()
 	console.log(ethPrice.toString())
-	const cdps = await liquidLong.getCdps_('0x913dA4198E6bE1D5f5E4a40D0667f70C0B5430Eb', utils.bigNumberify(0), utils.bigNumberify(100))
+	const cdps = await liquidLong.getCdps_('0x913dA4198E6bE1D5f5E4a40D0667f70C0B5430Eb', bigNumberify(0), bigNumberify(100))
 	console.log(cdps[0].id.toString())
-	const daiPurchaseEstimate = await liquidLong.estimateDaiPurchaseCosts_(utils.bigNumberify(1).mul('1000000000000000000'))
+	const daiPurchaseEstimate = await liquidLong.estimateDaiPurchaseCosts_(bigNumberify(1).mul('1000000000000000000'))
 	console.log(daiPurchaseEstimate._wethPaid.div(1000000000).toNumber() / 1000000000)
 	console.log(daiPurchaseEstimate._daiBought.div(1000000000).toNumber() / 1000000000)
 }

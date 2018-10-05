@@ -2,7 +2,7 @@ import { Address } from './Address'
 import { ByteArray } from './ByteArray';
 import { PrivateKey } from './PrivateKey'
 import { Abi } from 'ethereum';
-import { Wallet, providers, Contract } from 'ethers'
+import { Wallet, providers, ContractFactory } from 'ethers'
 
 export class ContractDeployer {
 	private readonly bytecode: ByteArray
@@ -20,7 +20,7 @@ export class ContractDeployer {
 	}
 
 	public async deploy(oasisAddress: Address, makerAddress: Address): Promise<Address> {
-		const contract = await new Contract('', JSON.stringify(this.abi), this.wallet).deploy(this.bytecode.toHexStringWithPrefix(), oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix())
+		const contract = await new ContractFactory(this.abi, this.bytecode, this.wallet).deploy(oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix())
 		return Address.fromHexString(contract.address)
 	}
 }

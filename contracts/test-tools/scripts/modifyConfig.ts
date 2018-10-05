@@ -1,8 +1,10 @@
 import {PrivateKey} from '../libraries/PrivateKey'
 import {SaiMom, SaiTub} from '../libraries/ContractInterfaces'
-import { providers, Wallet, utils } from 'ethers'
+import { Wallet } from 'ethers/wallet'
+import { JsonRpcProvider } from 'ethers/providers'
+import { BigNumber } from 'ethers/utils'
 
-const ETHER = new utils.BigNumber(10).pow(new utils.BigNumber(18));
+const ETHER = new BigNumber(10).pow(new BigNumber(18));
 
 function getEnv(name: string): string {
 	const value = process.env[name];
@@ -17,7 +19,7 @@ async function doStuff() {
 	const makerAddress = getEnv('ETHEREUM_MAKER_ADDRESS');
 	const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY'))
 
-	const provider = new providers.JsonRpcProvider(jsonRpcAddress, {chainId: 4173, ensAddress: '', name: 'dev'})
+	const provider = new JsonRpcProvider(jsonRpcAddress, {chainId: 4173, ensAddress: '', name: 'dev'})
 	const wallet = new Wallet(privateKey.toHexStringWithPrefix(), provider)
 
 	const makerContract = new SaiTub(makerAddress, wallet, gasPriceInNanoeth);
@@ -26,7 +28,7 @@ async function doStuff() {
 	const oldValue = (await makerContract.mat_());
 	console.log("Old mat value:", oldValue.toString());
 
-	await momContract.setMat(new utils.BigNumber("1400000000").mul(ETHER));
+	await momContract.setMat(new BigNumber("1400000000").mul(ETHER));
 
 	const newValue = (await makerContract.mat_());
 	console.log("New mat value:", newValue.toString());
