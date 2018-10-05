@@ -1,6 +1,5 @@
 import { Provider } from '@keydonix/liquid-long-client-library'
-import { BigNumber } from 'ethers'
-import { bigNumberify, defaultAbiCoder } from 'ethers/utils'
+import { BigNumber, bigNumberify, defaultAbiCoder } from 'ethers/utils'
 import { TransactionRequest, TransactionResponse, TransactionReceipt } from 'ethers/providers'
 
 export const QUINTILLION = bigNumberify(1e9).mul(1e9)
