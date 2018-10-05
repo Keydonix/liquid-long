@@ -89,10 +89,12 @@ export class LiquidLong {
 	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<void> => {
 		const leverageMultiplierInPercents = bigNumberify(Math.round(leverageMultiplier * 100))
 		const leverageSizeInAttoeth = bigNumberify(leverageSizeInEth).mul(1e18.toString())
+		const allowedCostInAttoeth = bigNumberify(costLimitInEth).mul(1e18.toString())
 		const allowedFeeInAttoeth = bigNumberify(feeLimitInEth).mul(1e18.toString())
 		const affiliateFeeInAttoeth = bigNumberify(0)
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
-		await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress)
+		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
+		await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
 	}
 
 	private fetchEthPriceInUsd = async (): Promise<number> => {
