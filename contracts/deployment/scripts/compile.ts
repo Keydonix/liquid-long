@@ -30,6 +30,7 @@ async function writeTs(compilerOutput: CompilerOutput) {
 	const fileContents = await new ContractInterfaceGenerator().generateContractInterfaces(compilerOutput)
 	await fsWriteFile(filePath, fileContents, { encoding: 'utf8', flag: 'w' })
 	await fsWriteFile(path.join(__dirname, '../../../client-library/library/source/generated/liquid-long.ts'), fileContents, { encoding: 'utf8', flag: 'w' })
+	await fsWriteFile(path.join(__dirname, '../../../toolbox/libraries/liquid-long.ts'), fileContents, { encoding: 'utf8', flag: 'w' })
 }
 
 doStuff().then(() => {
