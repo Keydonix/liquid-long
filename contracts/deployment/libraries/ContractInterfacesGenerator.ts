@@ -1,21 +1,43 @@
-import * as fs from 'fs'
-import { promisify } from 'util'
-const fsWriteFile = promisify(fs.writeFile)
-import { Abi, AbiFunction, AbiParameter } from 'ethereum'
-import { CompilerOutput, CompilerOutputContracts } from "solc"
+type Primitive = 'uint8' | 'uint64' | 'uint256' | 'bool' | 'string' | 'address' | 'bytes20' | 'bytes32' | 'bytes' | 'int256' | 'tuple' | 'address[]' | 'uint256[]' | 'bytes32[]' | 'tuple[]'
+
+interface AbiParameter {
+	name: string,
+	type: Primitive,
+	components?: Array<AbiParameter>
+}
+
+interface AbiEntry {
+	type: string
+}
+
+interface AbiFunction extends AbiEntry {
+	name: string,
+	type: 'function',
+	constant: boolean,
+	payable: boolean,
+	inputs: Array<AbiParameter>,
+	outputs: Array<AbiParameter>,
+}
+
+type Abi = Array<AbiEntry>
+
+interface CompilerOutput {
+	contracts: {
+		[globalName: string]: {
+			[contractName: string]: {
+				abi: Abi
+			}
+		}
+	}
+}
 
 export class ContractInterfaceGenerator {
-	public async generateContractInterfaces(contractsOutput: CompilerOutput, destinationPath: fs.PathLike): Promise<void> {
-		const fileContents: String = this.contractInterfacesTemplate(contractsOutput.contracts)
-		await fsWriteFile(destinationPath, fileContents)
-	}
-
-	private contractInterfacesTemplate(contracts: CompilerOutputContracts) {
+	public generateContractInterfaces(contractsOutput: CompilerOutput): string {
 		const contractInterfaces: Array<string> = []
 
-		for (let globalName in contracts) {
-			for (let contractName in contracts[globalName]) {
-				const contractAbi: Abi = contracts[globalName][contractName].abi
+		for (let globalName in contractsOutput.contracts) {
+			for (let contractName in contractsOutput.contracts[globalName]) {
+				const contractAbi: Abi = contractsOutput.contracts[globalName][contractName].abi
 				if (contractAbi.length == 0) continue
 				contractInterfaces.push(this.contractInterfaceTemplate(contractName, contractAbi))
 			}
@@ -139,19 +161,19 @@ export class Contract<TBigNumber> {
 	}
 }
 
-${contractInterfaces.join("\n")}
+${contractInterfaces.join('\n')}
 `
 	}
 
 	private contractInterfaceTemplate(contractName: String, contractAbi: Abi) {
 		const contractMethods: Array<String> = []
 
-		// Typescript doesn't allow the same name for a function. We only have one existing case for function overloading in a class and it has the same signature, so this is ok at the moment.
+		// FIXME: Add support for Solidity function overloads.  Right now overloaded functions are not supported, only the first one seen will servive addition into the following set.
 		const seen: Set<string> = new Set()
 
 		const contractFunctions: Array<AbiFunction> = contractAbi
-			.filter(v => v.type == "function")
-			.map(v => <AbiFunction>v)
+			.filter(abiEntry => abiEntry.type == 'function')
+			.map(abiFunction => <AbiFunction>abiFunction)
 
 		for (let abiFunction of contractFunctions) {
 			if (seen.has(abiFunction.name)) continue
@@ -168,7 +190,7 @@ export class ${contractName}<TBigNumber> extends Contract<TBigNumber> {
 		super(dependencies, address, defaultGasPrice)
 	}
 
-${contractMethods.join("\n\n")}
+${contractMethods.join('\n\n')}
 }
 `
 	}
@@ -176,11 +198,11 @@ ${contractMethods.join("\n\n")}
 	private remoteMethodTemplate(abiFunction: AbiFunction) {
 		const argNames: String = this.toArgNameString(abiFunction)
 		const params: String = this.toParamsString(abiFunction)
-		const options: String = `{ sender?: string, gasPrice?: TBigNumber${abiFunction.payable ? ", attachedEth?: TBigNumber" : ""} }`
+		const options: String = `{ sender?: string, gasPrice?: TBigNumber${abiFunction.payable ? ', attachedEth?: TBigNumber' : ''} }`
 		return `	public ${abiFunction.name} = async(${params}options?: ${options}): Promise<void> => {
 		options = options || {}
 		const abi: AbiFunction = ${JSON.stringify(abiFunction)}
-		await this.remoteCall(abi, [${argNames}], "${abiFunction.name}", options.sender, options.gasPrice${abiFunction.payable ? ", options.attachedEth" : ""})
+		await this.remoteCall(abi, [${argNames}], '${abiFunction.name}', options.sender, options.gasPrice${abiFunction.payable ? ', options.attachedEth' : ''})
 		return
 	}`
 	}
@@ -188,7 +210,7 @@ ${contractMethods.join("\n\n")}
 	private localMethodTemplate(abiFunction: AbiFunction) {
 		const argNames: String = this.toArgNameString(abiFunction)
 		const params: String = this.toParamsString(abiFunction)
-		const options: String = `{ sender?: string${abiFunction.payable ? ", attachedEth?: TBigNumber" : ""} }`
+		const options: String = `{ sender?: string${abiFunction.payable ? ', attachedEth?: TBigNumber' : ''} }`
 		const returnType: String = this.toTsReturnTypeString(abiFunction.outputs)
 		const returnPromiseType: String = returnType
 		const returnValue: String = (abiFunction.outputs.length === 1)
@@ -197,8 +219,7 @@ ${contractMethods.join("\n\n")}
 		return `	public ${abiFunction.name}_ = async(${params}options?: ${options}): Promise<${returnPromiseType}> => {
 		options = options || {}
 		const abi: AbiFunction = ${JSON.stringify(abiFunction)}
-		${abiFunction.outputs.length !== 0 ? 'const result = ' : ''}await this.localCall(abi, [${argNames}], options.sender${abiFunction.payable ? ", options.attachedEth" : ""})
-		${abiFunction.outputs.length !== 0 ? `return ${returnValue}` : ''}
+		${abiFunction.outputs.length !== 0 ? 'const result = ' : ''}await this.localCall(abi, [${argNames}], options.sender${abiFunction.payable ? ', options.attachedEth' : ''})${abiFunction.outputs.length !== 0 ? `\n\t\treturn ${returnValue}` : ''}
 	}`
 	}
 
@@ -249,7 +270,7 @@ ${contractMethods.join("\n\n")}
 	}
 
 	private toArgNameString(abiFunction: AbiFunction) {
-		return abiFunction.inputs.map(this.toParamNameString).join(", ")
+		return abiFunction.inputs.map(this.toParamNameString).join(', ')
 	}
 
 	private toParamsString(abiFunction: AbiFunction) {

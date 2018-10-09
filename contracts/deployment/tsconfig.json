@@ -7,5 +7,6 @@
 		"noEmit": true,
 		"strict": true,
 		"lib": [ "es2018", ],
+		"typeRoots": [ "./typings", "../node_modules/@types" ],
 	}
 }

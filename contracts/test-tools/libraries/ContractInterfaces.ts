@@ -17,8 +17,6 @@ type EthersOptions = {
   value?: BigNumber;
 }
 
-const TRANSACTION_TIMEOUT = 120000;
-
 class CallableContract {
 	private readonly gasPrice: BigNumber;
 	private readonly contract: Contract;
@@ -41,12 +39,12 @@ class CallableContract {
 		if (attachedEth !== undefined) overrideOptions["value"] = bigNumberify(attachedEth);
 		const txDetails = await this.contract.functions[txName](...parameters, overrideOptions);
 		const hash = txDetails.hash;
-		await this.contract.provider.waitForTransaction(hash, TRANSACTION_TIMEOUT);
+		await this.contract.provider.waitForTransaction(hash);
 		const txReceipt = await this.contract.provider.getTransactionReceipt(hash);
 		if (txReceipt.blockNumber! >= 0) {
 			return hash;
 		} else {
-			throw new Error(`Transaction ${hash} submitted, but not mined within ${TRANSACTION_TIMEOUT}ms`);
+			throw new Error(`Transaction ${hash} submitted, but not mined`);
 		}
 	}
 }
