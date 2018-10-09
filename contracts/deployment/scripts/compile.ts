@@ -21,14 +21,15 @@ async function doStuff() {
 
 async function writeJson(abi: (AbiFunction | AbiEvent)[]) {
 	const filePath = path.join(__dirname, '../../output/liquid-long-abi.json')
-	const data = JSON.stringify(abi, undefined, '\t')
-	return await fsWriteFile(filePath, data, { encoding: 'utf8', flag: 'w' })
+	const fileContents = JSON.stringify(abi, undefined, '\t')
+	return await fsWriteFile(filePath, fileContents, { encoding: 'utf8', flag: 'w' })
 }
 
 async function writeTs(compilerOutput: CompilerOutput) {
 	const filePath = path.join(__dirname, '../../output/liquid-long.ts')
-	await new ContractInterfaceGenerator().generateContractInterfaces(compilerOutput, filePath)
-	await fsCopyFile(filePath, path.join(__dirname, '../../../client-library/source/generated/liquid-long.ts'))
+	const fileContents = await new ContractInterfaceGenerator().generateContractInterfaces(compilerOutput)
+	await fsWriteFile(filePath, fileContents, { encoding: 'utf8', flag: 'w' })
+	await fsWriteFile(path.join(__dirname, '../../../client-library/library/source/generated/liquid-long.ts'), fileContents, { encoding: 'utf8', flag: 'w' })
 }
 
 doStuff().then(() => {
