@@ -1,5 +1,5 @@
 import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
-import { LiquidLongDependenciesEthers, Provider } from './liquid-long-ethers-impl'
+import { LiquidLongDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
 import { Scheduler } from './scheduler'
 import { PolledValue } from './polled-value'
 import { BigNumber, bigNumberify } from 'ethers/utils'
@@ -10,8 +10,8 @@ export class LiquidLong {
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
 
-	public constructor(scheduler: Scheduler, provider: Provider, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
-		this.contract = new LiquidLongContract(new LiquidLongDependenciesEthers(provider), liquidLongAddress, bigNumberify(1e9))
+	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
+		this.contract = new LiquidLongContract(new LiquidLongDependenciesEthers(provider, signer), liquidLongAddress)
 		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency, defaultEthPriceInUsd)
 		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency, defaultProviderFeeRate)
 		this.awaitReady = Promise.all([this.ethPriceInUsd.latest, this.providerFeeRate.latest]).then(() => {})
@@ -95,6 +95,14 @@ export class LiquidLong {
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
 		await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
+	}
+
+	public adminDepositEth = async (amount: number): Promise<void> => {
+		await this.contract.wethDeposit({ attachedEth: bigNumberify(amount).mul(1e18.toString()) })
+	}
+
+	public adminWithdrawEth = async (amount: number): Promise<void> => {
+		await this.contract.wethWithdraw(bigNumberify(amount).mul(1e18.toString()))
 	}
 
 	private fetchEthPriceInUsd = async (): Promise<number> => {

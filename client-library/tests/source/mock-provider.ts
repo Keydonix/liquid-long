@@ -30,12 +30,6 @@ export class MockProvider implements Provider {
 	async listAccounts(): Promise<string[]> {
 		return this.accounts
 	}
-	async send(method: string, params: any): Promise<any> {
-		throw new Error("Method not implemented.")
-	}
-	async sendTransaction(signedTransaction: string | Promise<string>): Promise<TransactionResponse> {
-		throw new Error("Method not implemented.")
-	}
 	async call(transaction: TransactionRequest): Promise<string> {
 		// getEthPrice()
 		if (transaction.data === '0x683e0bcd') return defaultAbiCoder.encode(['uint256'], [this.ethPriceInAttousd])
@@ -44,12 +38,6 @@ export class MockProvider implements Provider {
 		// TODO: make this decode the inputs and compute a reasonable output
 		// estimateDaiSaleProceeds(uint256)
 		if (typeof transaction.data === 'string' && transaction.data.startsWith('0x5988899c')) return defaultAbiCoder.encode(['uint256', 'uint256'], [this.attodaiPaidCost, this.attoethBoughtCost])
-		throw new Error("Method not implemented.")
-	}
-	async estimateGas(transaction: TransactionRequest): Promise<BigNumber> {
-		throw new Error("Method not implemented.")
-	}
-	async getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt> {
 		throw new Error("Method not implemented.")
 	}
 }

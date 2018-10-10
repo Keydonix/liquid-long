@@ -6,17 +6,13 @@ import * as path from 'path'
 import { promisify } from 'util'
 import { CompilerOutput } from 'solc';
 const fsWriteFile = promisify(fs.writeFile)
-const fsCopyFile = promisify(fs.copyFile)
 
 async function doStuff() {
 	const contractCompiler = new ContractCompiler()
 	const compilerOutput = await contractCompiler.compileContracts()
 	const abi = compilerOutput.contracts['liquid-long.sol']['LiquidLong'].abi
-	const bytecode = compilerOutput.contracts['liquid-long.sol']['LiquidLong'].evm.bytecode.object
 	await writeJson(abi)
 	await writeTs(compilerOutput)
-	console.log(JSON.stringify(abi))
-	console.log(bytecode)
 }
 
 async function writeJson(abi: (AbiFunction | AbiEvent)[]) {

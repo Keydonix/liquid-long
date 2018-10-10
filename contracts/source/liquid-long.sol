@@ -360,10 +360,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 
 	Oasis public oasis;
 	Maker public maker;
-	Dai private dai;
-	Weth private weth;
-	Peth private peth;
-	Mkr private mkr;
+	Dai public dai;
+	Weth public weth;
+	Peth public peth;
+	Mkr public mkr;
 
 	event NewCup(address user, bytes32 cup);
 
@@ -548,7 +548,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		uint256 _providerFeeInAttoeth = mul18(_loanInAttoeth, providerFeePerEth);
 		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
 		uint256 _drawInAttodai = mul18(_loanInAttoeth, uint256(maker.pip().read()));
-		uint256 _pethLockedInCdp = div27(_lockedInCdpInAttoeth, maker.per()) ;
+		uint256 _pethLockedInCdp = div27(_lockedInCdpInAttoeth, maker.per());
 
 		// Convert ETH to WETH (only the value amount, excludes loan amount which is already WETH)
 		weth.deposit.value(_leverageSizeInAttoeth)();
