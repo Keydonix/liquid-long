@@ -329,7 +329,8 @@ contract CdpHolder is Ownable {
 	}
 
 	function recordCdpOwnership(bytes32 _cdpId) public {
-		address _cdpOwner = maker.lad(bytes32(_cdpId));
+		address _cdpOwner = maker.lad(_cdpId);
+		require(_cdpOwner != address(this));
 		cdpLastOwner[_cdpId] = _cdpOwner;
 	}
 
