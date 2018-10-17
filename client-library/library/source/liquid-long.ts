@@ -77,7 +77,7 @@ export class LiquidLong {
 		const daiPerEth = this.ethPriceInUsd.cached
 		const loanSizeInEth = this.getLoanSizeInEth(leverageMultiplier, leverageSizeInEth)
 		const daiToSell = loanSizeInEth * daiPerEth
-		const attodaiToSell = bigNumberify(daiToSell).mul(1e18.toString())
+		const attodaiToSell = bigNumberify(Math.floor(daiToSell * 1e9)).mul(1e9)
 		const result = await this.contract.estimateDaiSaleProceeds_(attodaiToSell)
 		const daiSaleProceedsInEth = result._wethBought.div(1e9).toNumber() / 1e9
 		const estimatedCostInEth = loanSizeInEth - daiSaleProceedsInEth
@@ -88,9 +88,9 @@ export class LiquidLong {
 
 	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<void> => {
 		const leverageMultiplierInPercents = bigNumberify(Math.round(leverageMultiplier * 100))
-		const leverageSizeInAttoeth = bigNumberify(leverageSizeInEth).mul(1e18.toString())
-		const allowedCostInAttoeth = bigNumberify(costLimitInEth).mul(1e18.toString())
-		const allowedFeeInAttoeth = bigNumberify(feeLimitInEth).mul(1e18.toString())
+		const leverageSizeInAttoeth = bigNumberify(Math.floor(leverageSizeInEth * 1e9)).mul(1e9)
+		const allowedCostInAttoeth = bigNumberify(Math.floor(costLimitInEth * 1e9)).mul(1e9)
+		const allowedFeeInAttoeth = bigNumberify(Math.floor(feeLimitInEth * 1e9)).mul(1e9)
 		const affiliateFeeInAttoeth = bigNumberify(0)
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
