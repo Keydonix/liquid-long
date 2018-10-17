@@ -1,20 +1,22 @@
 import { Dependencies, AbiFunction, AbiParameter, Transaction } from './generated/liquid-long'
 import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
-import { TransactionResponse, TransactionRequest, TransactionReceipt } from 'ethers/providers';
+import { TransactionResponse, TransactionRequest } from 'ethers/providers';
 
 export interface Provider {
 	listAccounts(): Promise<Array<string>>
-	send(method: string, params: any): Promise<any>
-	sendTransaction(signedTransaction: string | Promise<string>): Promise<TransactionResponse>
 	call(transaction: TransactionRequest): Promise<string>
-	estimateGas(transaction: TransactionRequest): Promise<BigNumber>
-	getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt>
+}
+
+export interface Signer {
+	sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
 }
 
 export class LiquidLongDependenciesEthers implements Dependencies<BigNumber> {
 	private readonly provider: Provider
-	public constructor(provider: Provider) {
+	private readonly signer: Signer
+	public constructor(provider: Provider, signer: Signer) {
 		this.provider = provider
+		this.signer = signer
 	}
 
 	keccak256 = (utf8String: string) => keccak256(toUtf8Bytes(utf8String))
@@ -22,12 +24,5 @@ export class LiquidLongDependenciesEthers implements Dependencies<BigNumber> {
 	decodeParams = (abiParameters: Array<AbiParameter>, encoded: string) => new AbiCoder().decode(abiParameters, encoded)
 	getDefaultAddress = async () => (await this.provider.listAccounts())[0]
 	call = async (transaction: Transaction<BigNumber>) => await this.provider.call(transaction)
-	estimateGas = async (transaction: Transaction<BigNumber>) => await this.provider.estimateGas(transaction)
-	signTransaction = async (transaction: Transaction<BigNumber>) => (await this.provider.send('eth_signTransaction', [ transaction ])).raw
-	sendSignedTransaction = async (signedTransaction: string) => {
-		const transactionResponse = await this.provider.sendTransaction(signedTransaction)
-		await transactionResponse.wait()
-		const transactionReceipt = await this.provider.getTransactionReceipt(transactionResponse.hash!)
-		return { status: transactionReceipt.status! }
-	}
+	submitTransaction = async (transaction: Transaction<BigNumber>) => ({ status: (await (await this.signer.sendTransaction(transaction)).wait()).status! })
 }

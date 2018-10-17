@@ -2,9 +2,9 @@ require('source-map-support').install()
 
 import 'mocha'
 import { expect } from 'chai'
-import { LiquidLong, TimeoutScheduler, JsonRpcProvider, Scheduler, Provider } from '@keydonix/liquid-long-client-library'
+import { LiquidLong, TimeoutScheduler, JsonRpcProvider, Scheduler, Provider, Signer } from '@keydonix/liquid-long-client-library'
 
-describe('getEthPriceInUsd', async () => {
+describe('liquid long tests', async () => {
 	let ethereumAddress: string
 	let liquidLongAddress: string
 	before(async () => {
@@ -18,11 +18,13 @@ describe('getEthPriceInUsd', async () => {
 
 	let scheduler: Scheduler
 	let provider: Provider
+	let signer: Signer
 	let liquidLong: LiquidLong
 	beforeEach(async () => {
 		scheduler = new TimeoutScheduler()
 		provider = new JsonRpcProvider(ethereumAddress, 4173)
-		liquidLong = new LiquidLong(scheduler, provider, liquidLongAddress, 0, 0.01)
+		signer = (<JsonRpcProvider>provider).getSigner(0)
+		liquidLong = new LiquidLong(scheduler, provider, signer, liquidLongAddress, 0, 0.01)
 		await liquidLong.awaitReady
 	})
 
@@ -30,10 +32,24 @@ describe('getEthPriceInUsd', async () => {
 		await liquidLong.shutdown()
 	})
 
-	it('should return baked in price of 600', async () => {
-		const price = await liquidLong.getEthPriceInUsd()
+	describe('getEthPriceInUsd', async () => {
+		it('should return baked in price of 600', async () => {
+			const price = await liquidLong.getEthPriceInUsd()
 
-		expect(price).to.equal(600)
+			expect(price).to.equal(600)
+		})
+	})
+
+	describe('openPosition', async () => {
+		beforeEach(async () => {
+			await liquidLong.adminDepositEth(100)
+		})
+		afterEach(async () => {
+			await liquidLong.adminWithdrawEth(100)
+		})
+		it('should be able to open an unleveraged position', async () => {
+			await liquidLong.openPosition(1, 1, 1, 1)
+		})
 	})
 })
 

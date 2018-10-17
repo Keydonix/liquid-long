@@ -94,9 +94,7 @@ export interface Dependencies<TBigNumber> {
 	decodeParams(abi: Array<AbiParameter>, encoded: string): Array<any>
 	getDefaultAddress(): Promise<string>
 	call(transaction: Transaction<TBigNumber>): Promise<string>
-	estimateGas(transaction: Transaction<TBigNumber>): Promise<TBigNumber>
-	signTransaction(transaction: Transaction<TBigNumber>): Promise<string>
-	sendSignedTransaction(signedTransaction: string): Promise<TransactionReceipt>
+	submitTransaction(transaction: Transaction<TBigNumber>): Promise<TransactionReceipt>
 }
 
 
@@ -106,12 +104,10 @@ export interface Dependencies<TBigNumber> {
 export class Contract<TBigNumber> {
 	protected readonly dependencies: Dependencies<TBigNumber>
 	public readonly address: string
-	protected readonly defaultGasPrice: TBigNumber
 
-	protected constructor(dependencies: Dependencies<TBigNumber>, address: string, defaultGasPrice: TBigNumber) {
+	protected constructor(dependencies: Dependencies<TBigNumber>, address: string) {
 		this.dependencies = dependencies
 		this.address = address
-		this.defaultGasPrice = defaultGasPrice
 	}
 
 	private stringifyParams(params: Array<AbiParameter>): Array<string> {
@@ -147,14 +143,11 @@ export class Contract<TBigNumber> {
 		return this.dependencies.decodeParams(abi.outputs, result)
 	}
 
-	protected async remoteCall(abi: AbiFunction, parameters: Array<any>, txName: String, sender?: string, gasPrice?: TBigNumber, attachedEth?: TBigNumber): Promise<void> {
+	protected async remoteCall(abi: AbiFunction, parameters: Array<any>, txName: String, sender?: string, attachedEth?: TBigNumber): Promise<void> {
 		const from = sender || await this.dependencies.getDefaultAddress()
 		const data = this.encodeMethod(abi, parameters)
-		const gasEstimate = await this.dependencies.estimateGas(Object.assign({ to: this.address, from: from, data: data }, attachedEth ? { value: attachedEth } : {} ))
-		gasPrice = gasPrice || this.defaultGasPrice
-		const transaction = Object.assign({ from: from, to: this.address, data: data, gasPrice: gasPrice, gas: gasEstimate }, attachedEth ? { value: attachedEth } : {})
-		const signedTransaction = await this.dependencies.signTransaction(transaction)
-		const transactionReceipt = await this.dependencies.sendSignedTransaction(signedTransaction)
+		const transaction = Object.assign({ from: from, to: this.address, data: data }, attachedEth ? { value: attachedEth } : {})
+		const transactionReceipt = await this.dependencies.submitTransaction(transaction)
 		if (transactionReceipt.status != 1) {
 			throw new Error(\`Tx \${txName} failed: \${transactionReceipt}\`)
 		}
@@ -186,8 +179,8 @@ ${contractInterfaces.join('\n')}
 
 		return `
 export class ${contractName}<TBigNumber> extends Contract<TBigNumber> {
-	public constructor(dependencies: Dependencies<TBigNumber>, address: string, defaultGasPrice: TBigNumber) {
-		super(dependencies, address, defaultGasPrice)
+	public constructor(dependencies: Dependencies<TBigNumber>, address: string) {
+		super(dependencies, address)
 	}
 
 ${contractMethods.join('\n\n')}
@@ -198,11 +191,11 @@ ${contractMethods.join('\n\n')}
 	private remoteMethodTemplate(abiFunction: AbiFunction) {
 		const argNames: String = this.toArgNameString(abiFunction)
 		const params: String = this.toParamsString(abiFunction)
-		const options: String = `{ sender?: string, gasPrice?: TBigNumber${abiFunction.payable ? ', attachedEth?: TBigNumber' : ''} }`
+		const options: String = `{ sender?: string${abiFunction.payable ? ', attachedEth?: TBigNumber' : ''} }`
 		return `	public ${abiFunction.name} = async(${params}options?: ${options}): Promise<void> => {
 		options = options || {}
 		const abi: AbiFunction = ${JSON.stringify(abiFunction)}
-		await this.remoteCall(abi, [${argNames}], '${abiFunction.name}', options.sender, options.gasPrice${abiFunction.payable ? ', options.attachedEth' : ''})
+		await this.remoteCall(abi, [${argNames}], '${abiFunction.name}', options.sender${abiFunction.payable ? ', options.attachedEth' : ''})
 		return
 	}`
 	}

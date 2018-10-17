@@ -1,5 +1,6 @@
 import { PrivateKey } from '../libraries/PrivateKey'
 import { OasisdexContract } from '../libraries/ContractInterfaces'
+import { getEnv } from '../libraries/Environment'
 import { JsonRpcProvider } from 'ethers/providers'
 import { Wallet } from 'ethers/wallet'
 import { BigNumber, bigNumberify } from 'ethers/utils'
@@ -10,13 +11,6 @@ const WETH_ADDRESS = "0xfcaf25bf38e7c86612a25ff18cb8e09ab07c9885"
 
 const ZERO = bigNumberify(0)
 const ETHER = bigNumberify(10).pow(bigNumberify(18))
-
-function getEnv(name: string, fallback?: string): string {
-	const value = process.env[name]
-	if (value !== undefined) return value
-	if (fallback === undefined) throw new Error(`${name} environment variable required`)
-	return fallback
-}
 
 enum OrderType {
 	BID,

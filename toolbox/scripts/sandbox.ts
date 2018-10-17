@@ -2,6 +2,7 @@ import { Wallet } from 'ethers/wallet'
 import { JsonRpcProvider } from 'ethers/providers'
 import { bigNumberify, keccak256, toUtf8Bytes, AbiCoder } from 'ethers/utils'
 import { LiquidLong } from '../libraries/liquid-long'
+import { LiquidLongDependenciesEthers } from '../libraries/liquid-long-ethers-impl';
 
 const makerAbi = [
 	{
@@ -2548,21 +2549,8 @@ const oasisAbi = [
 async function doStuff() {
 	const provider = new JsonRpcProvider('http://localhost:1235', 4173)
 	const wallet = new Wallet('0xfae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a', provider)
-	const liquidLong = new LiquidLong({
-		keccak256: utf8String => keccak256(toUtf8Bytes(utf8String)),
-		encodeParams: (abiParameters, parameters) => new AbiCoder().encode(abiParameters.inputs, parameters).substr(2),
-		decodeParams: (abiParameters, encoded) => new AbiCoder().decode(abiParameters, encoded),
-		getDefaultAddress: async () => (await provider.listAccounts())[0],
-		call: async transaction => await provider.call(transaction),
-		estimateGas: async transaction => await provider.estimateGas(transaction),
-		signTransaction: async transaction => await wallet.sign(transaction),
-		sendSignedTransaction: async signedTransaction => {
-			const transactionResponse = await provider.sendTransaction(signedTransaction)
-			await transactionResponse.wait()
-			const transactionReceipt = await provider.getTransactionReceipt(transactionResponse.hash!)
-			return { status: transactionReceipt.status! }
-		},
-	}, '0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3', bigNumberify(1000000000))
+	const dependencies = new LiquidLongDependenciesEthers(provider, wallet, 1)
+	const liquidLong = new LiquidLong(dependencies, '0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3')
 	// const maker = new Contract('0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6', makerAbi, wallet)
 	// const oasis = new Contract('0x3c6721551c2ba3973560aef3e11d34ce05db4047', oasisAbi, wallet)
 

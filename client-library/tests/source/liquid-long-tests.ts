@@ -3,18 +3,21 @@ import { expect } from 'chai'
 import { LiquidLong } from '@keydonix/liquid-long-client-library'
 import { MockProvider } from './mock-provider'
 import { MockScheduler } from './mock-scheduler';
+import { MockSigner } from './mock-signer';
 
 const ZERO_ADRESS = '0x0000000000000000000000000000000000000000'
 
 describe('LiquidLong', async () => {
 	let mockScheduler: MockScheduler
 	let mockProvider: MockProvider
+	let mockSigner: MockSigner
 	let liquidLong: LiquidLong
 
 	beforeEach(async () => {
 		mockScheduler = new MockScheduler()
 		mockProvider = new MockProvider()
-		liquidLong = new LiquidLong(mockScheduler, mockProvider, ZERO_ADRESS, 1, 0.01)
+		mockSigner = new MockSigner()
+		liquidLong = new LiquidLong(mockScheduler, mockProvider, mockSigner, ZERO_ADRESS, 1, 0.01)
 	})
 
 	afterEach(async () => {
