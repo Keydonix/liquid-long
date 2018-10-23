@@ -1,5 +1,5 @@
 import { ContractCompiler } from '../libraries/ContractCompiler'
-import { ContractInterfaceGenerator } from '../libraries/ContractInterfacesGenerator'
+import { generateContractInterfaces } from 'solidity-typescript-generator'
 import { AbiFunction, AbiEvent } from 'ethereum';
 import * as fs from 'fs'
 import * as path from 'path'
@@ -23,7 +23,7 @@ async function writeJson(abi: (AbiFunction | AbiEvent)[]) {
 
 async function writeTs(compilerOutput: CompilerOutput) {
 	const filePath = path.join(__dirname, '../../output/liquid-long.ts')
-	const fileContents = await new ContractInterfaceGenerator().generateContractInterfaces(compilerOutput)
+	const fileContents = await generateContractInterfaces(compilerOutput)
 	await fsWriteFile(filePath, fileContents, { encoding: 'utf8', flag: 'w' })
 	await fsWriteFile(path.join(__dirname, '../../../client-library/library/source/generated/liquid-long.ts'), fileContents, { encoding: 'utf8', flag: 'w' })
 	await fsWriteFile(path.join(__dirname, '../../../toolbox/libraries/liquid-long.ts'), fileContents, { encoding: 'utf8', flag: 'w' })

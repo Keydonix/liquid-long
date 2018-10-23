@@ -1,3 +1,4 @@
 **/node_modules/
 **/output/
-/client-library/source/generated/
+/client-library/library/source/generated/
+/toolbox/libraries/liquid-long.ts

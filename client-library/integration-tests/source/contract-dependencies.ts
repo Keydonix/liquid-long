@@ -1,15 +1,6 @@
-import { Dependencies, AbiFunction, AbiParameter, Transaction } from './generated/liquid-long'
+import { Dependencies, AbiFunction, AbiParameter, Transaction } from '@keydonix/maker-contract-interfaces'
 import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
-import { TransactionResponse, TransactionRequest } from 'ethers/providers';
-
-export interface Provider {
-	listAccounts(): Promise<Array<string>>
-	call(transaction: TransactionRequest): Promise<string>
-}
-
-export interface Signer {
-	sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
-}
+import { Provider, Signer } from '@keydonix/liquid-long-client-library'
 
 export class ContractDependenciesEthers implements Dependencies<BigNumber> {
 	private readonly provider: Provider

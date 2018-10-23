@@ -17,6 +17,5 @@ RUN npx tsc
 
 COPY integration-tests/ /app/integration-tests/
 WORKDIR /app/integration-tests
-RUN npm link ../library
 
 ENTRYPOINT [ "npx", "mocha", "--require", "ts-node/register", "--colors", "source/**/*.ts", "--timeout", "10000" ]

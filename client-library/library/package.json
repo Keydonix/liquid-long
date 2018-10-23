@@ -23,6 +23,6 @@
 		"typescript": "3.0.0-rc"
 	},
 	"dependencies": {
-		"ethers": "4.0.3"
+		"ethers": "4.0.7"
 	}
 }

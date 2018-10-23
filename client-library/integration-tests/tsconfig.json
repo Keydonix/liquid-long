@@ -4,6 +4,7 @@
 		"module": "commonjs",
 		"strict": true,
 		"noEmitOnError": true,
+		"noEmit": true,
 		"noImplicitAny": true,
 		"noImplicitThis": true,
 		"noImplicitReturns": true,
