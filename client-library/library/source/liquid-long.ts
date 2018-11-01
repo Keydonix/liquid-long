@@ -3,6 +3,7 @@ import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethe
 import { Scheduler } from './scheduler'
 import { PolledValue } from './polled-value'
 import { BigNumber, bigNumberify } from 'ethers/utils'
+import { parseHexInt } from './utils';
 
 export class LiquidLong {
 	private readonly contract: LiquidLongContract<BigNumber>
@@ -86,7 +87,7 @@ export class LiquidLong {
 		return { low, high }
 	}
 
-	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<void> => {
+	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<number> => {
 		const leverageMultiplierInPercents = bigNumberify(Math.round(leverageMultiplier * 100))
 		const leverageSizeInAttoeth = bigNumberify(Math.round(leverageSizeInEth * 1e9)).mul(1e9)
 		const allowedCostInAttoeth = bigNumberify(Math.round(costLimitInEth * 1e9)).mul(1e9)
@@ -94,7 +95,11 @@ export class LiquidLong {
 		const affiliateFeeInAttoeth = bigNumberify(0)
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
-		await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
+		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
+		const newCupEvent = <{ name: 'newCup', parameters: {user: string, cup: string } }>events.find(x => x.name === 'newCup')
+		if (!newCupEvent) throw new Error(`Expected 'newCup' event when calling 'openCdp' but no such event found.`)
+		if (!newCupEvent.parameters || !newCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'newCup' event.\n${newCupEvent}`)
+		return parseHexInt(newCupEvent.parameters.cup)
 	}
 
 	public adminDepositEth = async (amount: number): Promise<void> => {

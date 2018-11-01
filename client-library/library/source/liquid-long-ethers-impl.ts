@@ -1,4 +1,4 @@
-import { Dependencies, AbiFunction, AbiParameter, Transaction } from './generated/liquid-long'
+import { Dependencies, AbiFunction, AbiParameter, Transaction, TransactionReceipt } from './generated/liquid-long'
 import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
 import { TransactionResponse, TransactionRequest } from 'ethers/providers';
 
@@ -28,6 +28,8 @@ export class ContractDependenciesEthers implements Dependencies<BigNumber> {
 		// https://github.com/ethers-io/ethers.js/issues/321
 		transaction = Object.assign({}, transaction)
 		delete transaction.from
-		return { status: (await (await this.signer.sendTransaction(transaction)).wait()).status! }
+		const receipt = await (await this.signer.sendTransaction(transaction)).wait()
+		// ethers has `status` on the receipt as optional, even though it isn't and never will be undefined if using a modern network (which this is designed for)
+		return <TransactionReceipt>receipt
 	}
 }

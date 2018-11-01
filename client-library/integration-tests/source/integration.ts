@@ -79,7 +79,7 @@ describe('liquid long tests', async () => {
 			const cost = (await liquidLong.getEstimatedCostsInEth(2, 1)).low
 
 			// act
-			await liquidLong.openPosition(2, 1, cost, fee)
+			const cupId = await liquidLong.openPosition(2, 1, cost, fee)
 
 			// cleanup
 			await liquidLong.adminWithdrawEth(100 - fee - cost - 1)
