@@ -1,0 +1,7 @@
+{
+  "scripts": {
+    "test": "cd ./tests && npm install && npm run test",
+    "test-no-build": "cd ./tests && npm run test-no-build",
+    "prepublishOnly": "npm run test"
+  }
+}

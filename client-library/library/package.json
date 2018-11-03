@@ -1,8 +1,10 @@
 {
-	"name": "@keydonix/liquid-long-client-library",
-	"version": "1.2.2",
+	"name": "liquid-long-client-library",
+	"version": "1.2.4",
 	"description": "A client library for Liquid Long.",
 	"main": "output/index.js",
+	"module": "output/index.js",
+	"typings": "output/index.d.ts",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Keydonix/liquid-long.git"
@@ -13,16 +15,11 @@
 		"url": "https://github.com/Keydonix/liquid-long/issues"
 	},
 	"homepage": "https://github.com/Keydonix/liquid-long#readme",
-	"scripts": {
-		"test": "cd ../tests && npm install && npm run test",
-		"test-no-build": "cd ../tests && npm run test-no-build",
-		"prepublishOnly": "npm run test"
-	},
 	"devDependencies": {
 		"@types/node": "10.5.8",
 		"typescript": "3.0.0-rc"
 	},
-	"dependencies": {
-		"ethers": "4.0.3"
+	"peerDependencies": {
+		"ethers": "4.0.4"
 	}
 }
