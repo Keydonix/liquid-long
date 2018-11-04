@@ -5,6 +5,7 @@
 	"main": "output/index.js",
 	"module": "output/index.js",
 	"typings": "output/index.d.ts",
+	"sideEffects": false,
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Keydonix/liquid-long.git"
