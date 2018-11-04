@@ -3,10 +3,10 @@ import { LiquidLongDependenciesEthers, Provider, Signer } from './liquid-long-et
 import { Scheduler } from './scheduler'
 import { PolledValue } from './polled-value'
 
-import { ethers } from 'ethers';
+import * as ethers from 'ethers';
 // import { BigNumber, bigNumberify } from 'ethers/utils';
-type BigNumber = ethers.utils.BigNumber;
-const bigNumberify = ethers.utils.bigNumberify;
+import BigNumber = ethers.utils.BigNumber;
+import bigNumberify = ethers.utils.bigNumberify;
 
 
 export class LiquidLong {

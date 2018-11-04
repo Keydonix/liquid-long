@@ -1,14 +1,14 @@
 import { Dependencies, AbiFunction, AbiParameter, Transaction } from './generated/liquid-long';
 
-import { ethers } from 'ethers';
+import * as ethers from 'ethers';
 // import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils';
-type BigNumber = ethers.utils.BigNumber;
-const keccak256 = ethers.utils.keccak256;
-const toUtf8Bytes = ethers.utils.toUtf8Bytes;
-const AbiCoder = ethers.utils.AbiCoder;
+import BigNumber = ethers.utils.BigNumber;
+import keccak256 = ethers.utils.keccak256;
+import toUtf8Bytes = ethers.utils.toUtf8Bytes;
+import AbiCoder = ethers.utils.AbiCoder;
 // import { TransactionResponse, TransactionRequest } from 'ethers/providers';
-type TransactionResponse = ethers.providers.TransactionResponse;
-type TransactionRequest = ethers.providers.TransactionRequest;
+import TransactionResponse = ethers.providers.TransactionResponse;
+import TransactionRequest = ethers.providers.TransactionRequest;
 
 
 export interface Provider {

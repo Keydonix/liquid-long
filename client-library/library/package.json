@@ -1,6 +1,6 @@
 {
 	"name": "liquid-long-client-library",
-	"version": "1.2.4",
+	"version": "1.2.6",
 	"description": "A client library for Liquid Long.",
 	"main": "output/index.js",
 	"module": "output/index.js",
