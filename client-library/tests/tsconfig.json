@@ -3,6 +3,7 @@
 		"target": "es2017",
 		"module": "commonjs",
 		"strict": true,
+		"noEmit": true,
 		"noEmitOnError": true,
 		"noImplicitAny": true,
 		"noImplicitThis": true,
