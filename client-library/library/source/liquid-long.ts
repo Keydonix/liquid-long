@@ -96,7 +96,7 @@ export class LiquidLong {
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
 		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
-		const newCupEvent = <{ name: 'newCup', parameters: {user: string, cup: string } }>events.find(x => x.name === 'newCup')
+		const newCupEvent = <{ name: 'NewCup', parameters: {user: string, cup: string } }>events.find(x => x.name === 'NewCup')
 		if (!newCupEvent) throw new Error(`Expected 'newCup' event when calling 'openCdp' but no such event found.`)
 		if (!newCupEvent.parameters || !newCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'newCup' event.\n${newCupEvent}`)
 		return parseHexInt(newCupEvent.parameters.cup)
