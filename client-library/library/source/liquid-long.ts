@@ -1,8 +1,9 @@
 import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
-import { LiquidLongDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
+import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
 import { Scheduler } from './scheduler'
 import { PolledValue } from './polled-value'
 import { BigNumber, bigNumberify } from 'ethers/utils'
+import { parseHexInt } from './utils';
 
 export class LiquidLong {
 	private readonly contract: LiquidLongContract<BigNumber>
@@ -11,7 +12,7 @@ export class LiquidLong {
 	public readonly awaitReady: Promise<void>
 
 	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
-		this.contract = new LiquidLongContract(new LiquidLongDependenciesEthers(provider, signer), liquidLongAddress)
+		this.contract = new LiquidLongContract(new ContractDependenciesEthers(provider, signer), liquidLongAddress)
 		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency, defaultEthPriceInUsd)
 		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency, defaultProviderFeeRate)
 		this.awaitReady = Promise.all([this.ethPriceInUsd.latest, this.providerFeeRate.latest]).then(() => {})
@@ -86,23 +87,27 @@ export class LiquidLong {
 		return { low, high }
 	}
 
-	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<void> => {
+	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<number> => {
 		const leverageMultiplierInPercents = bigNumberify(Math.round(leverageMultiplier * 100))
-		const leverageSizeInAttoeth = bigNumberify(Math.floor(leverageSizeInEth * 1e9)).mul(1e9)
-		const allowedCostInAttoeth = bigNumberify(Math.floor(costLimitInEth * 1e9)).mul(1e9)
-		const allowedFeeInAttoeth = bigNumberify(Math.floor(feeLimitInEth * 1e9)).mul(1e9)
+		const leverageSizeInAttoeth = bigNumberify(Math.round(leverageSizeInEth * 1e9)).mul(1e9)
+		const allowedCostInAttoeth = bigNumberify(Math.round(costLimitInEth * 1e9)).mul(1e9)
+		const allowedFeeInAttoeth = bigNumberify(Math.round(feeLimitInEth * 1e9)).mul(1e9)
 		const affiliateFeeInAttoeth = bigNumberify(0)
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
-		await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
+		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
+		const newCupEvent = <{ name: 'newCup', parameters: {user: string, cup: string } }>events.find(x => x.name === 'newCup')
+		if (!newCupEvent) throw new Error(`Expected 'newCup' event when calling 'openCdp' but no such event found.`)
+		if (!newCupEvent.parameters || !newCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'newCup' event.\n${newCupEvent}`)
+		return parseHexInt(newCupEvent.parameters.cup)
 	}
 
 	public adminDepositEth = async (amount: number): Promise<void> => {
-		await this.contract.wethDeposit({ attachedEth: bigNumberify(amount).mul(1e18.toString()) })
+		await this.contract.wethDeposit({ attachedEth: bigNumberify(Math.round(amount * 1e9)).mul(1e9) })
 	}
 
 	public adminWithdrawEth = async (amount: number): Promise<void> => {
-		await this.contract.wethWithdraw(bigNumberify(amount).mul(1e18.toString()))
+		await this.contract.wethWithdraw(bigNumberify(Math.round(amount * 1e9)).mul(1e9))
 	}
 
 	private fetchEthPriceInUsd = async (): Promise<number> => {
