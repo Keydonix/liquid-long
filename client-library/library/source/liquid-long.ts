@@ -7,7 +7,7 @@ import * as ethers from 'ethers';
 // import { BigNumber, bigNumberify } from 'ethers/utils';
 import BigNumber = ethers.utils.BigNumber;
 import bigNumberify = ethers.utils.bigNumberify;
-import parseHexInt = ethers.utils.parseHexInt;
+import { parseHexInt } from './utils';
 
 
 export class LiquidLong {
@@ -100,8 +100,9 @@ export class LiquidLong {
 		const affiliateFeeInAttoeth = bigNumberify(0);
 		const affiliateAddress = '0x0000000000000000000000000000000000000000';
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth);
-		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth });
-		const newCupEvent = <{ name: 'NewCup', parameters: {user: string, cup: string } }>events.find(x => x.name === 'NewCup');
+		const events: { name: 'NewCup', parameters: {user: string, cup: string } }[] = await
+			this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth });
+		const newCupEvent = events.find(x => x.name === 'NewCup');
 		if (!newCupEvent) throw new Error(`Expected 'newCup' event when calling 'openCdp' but no such event found.`);
 		if (!newCupEvent.parameters || !newCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'newCup' event.\n${newCupEvent}`);
 		return parseHexInt(newCupEvent.parameters.cup);
