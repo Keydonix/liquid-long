@@ -123,8 +123,6 @@
 			"args": [ "--require", "ts-node/register", "--timeout", "999999", "--colors", "source/**/*.ts" ],
 			"env": {
 				"TS_NODE_PROJECT": "${workspaceFolder}/client-library/integration-tests/tsconfig.json",
-				"ETHEREUM_HTTP": "http://localhost:1235",
-				"ETHEREUM_LIQUID_LONG_ADDRESS": "0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3",
 			}
 		}
 	]

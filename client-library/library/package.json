@@ -1,6 +1,6 @@
 {
 	"name": "liquid-long-client-library",
-	"version": "1.2.6",
+	"version": "1.2.7",
 	"description": "A client library for Liquid Long.",
 	"main": "output/index.js",
 	"module": "output/index.js",
@@ -18,9 +18,9 @@
 	"homepage": "https://github.com/Keydonix/liquid-long#readme",
 	"devDependencies": {
 		"@types/node": "10.5.8",
-		"typescript": "3.0.0-rc"
+		"typescript": "3.1.6"
 	},
 	"peerDependencies": {
-		"ethers": "4.0.4"
+		"ethers": "4.0.7"
 	}
 }
