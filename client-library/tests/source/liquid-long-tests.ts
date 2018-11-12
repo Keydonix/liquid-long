@@ -263,6 +263,7 @@ describe('LiquidLong', async () => {
 
 		const tests = [
 			{ feedPrice: 1000, oasisPrice: 900, leverageMultiplier: 2, leverageSize: 1, expectedLowEstimate: 0.1, expectedHighEstimate: 0.2 },
+			{ feedPrice: 1000, oasisPrice: 1000, leverageMultiplier: 2, leverageSize: 1, expectedLowEstimate: 0, expectedHighEstimate: 0.05 },
 			// TODO: at the moment the mock just returns a fixed value, it doesn't consider inputs, so the following won't work
 			// { feedPrice: 1000, oasisPrice: 900, leverageMultiplier: 3, leverageSize: 1, expectedLowEstimate: 0.2, expectedHighEstimate: 0.4 },
 			// { feedPrice: 1000, oasisPrice: 900, leverageMultiplier: 2, leverageSize: 2, expectedLowEstimate: 0.2, expectedHighEstimate: 0.4 },
