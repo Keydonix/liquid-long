@@ -3,6 +3,8 @@
 	"version": "1.2.3",
 	"description": "A client library for Liquid Long.",
 	"main": "output/index.js",
+	"types": "output/index.d.ts",
+	"sideEffects": false,
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/Keydonix/liquid-long.git"
