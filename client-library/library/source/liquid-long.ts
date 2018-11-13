@@ -83,7 +83,7 @@ export class LiquidLong {
 		const daiSaleProceedsInEth = result._wethBought.div(1e9).toNumber() / 1e9
 		const estimatedCostInEth = loanSizeInEth - daiSaleProceedsInEth
 		const low = estimatedCostInEth
-		const high = (low > 0) ? low * 2 : 0
+		const high = Math.max(low * 2, loanSizeInEth * 0.05)
 		return { low, high }
 	}
 
