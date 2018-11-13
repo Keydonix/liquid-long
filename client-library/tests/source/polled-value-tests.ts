@@ -1,6 +1,6 @@
 import 'mocha'
 import { expect } from 'chai'
-import { PolledValue } from '@keydonix/liquid-long-client-library'
+import { PolledValue } from '@keydonix/liquid-long-client-library/source/polled-value'
 import { MockScheduler } from './mock-scheduler';
 
 describe('PolledValue', async () => {

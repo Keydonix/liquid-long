@@ -1,15 +1,32 @@
 import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
 import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
-import { Scheduler } from './scheduler'
+import { Scheduler, TimeoutScheduler } from './scheduler'
 import { PolledValue } from './polled-value'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { parseHexInt } from './utils';
+import { JsonRpcProvider, Web3Provider, AsyncSendable } from 'ethers/providers';
 
 export class LiquidLong {
 	private readonly contract: LiquidLongContract<BigNumber>
 	private readonly ethPriceInUsd: PolledValue<number>
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
+
+	static createWeb3(web3Provider: AsyncSendable, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+		const scheduler = new TimeoutScheduler()
+		const provider = new Web3Provider(web3Provider)
+		const signer = provider.getSigner(0)
+		provider.pollingInterval = web3PollingInterval
+		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, ethPricePollingFrequency, serviceFeePollingFrequency)
+	}
+
+	static createJsonRpc(jsonRpcAddress: string, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+		const scheduler = new TimeoutScheduler()
+		const provider = new JsonRpcProvider(jsonRpcAddress);
+		const signer = provider.getSigner(0)
+		provider.pollingInterval = jsonRpcPollingInterval
+		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, ethPricePollingFrequency, serviceFeePollingFrequency)
+	}
 
 	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
 		this.contract = new LiquidLongContract(new ContractDependenciesEthers(provider, signer), liquidLongAddress)

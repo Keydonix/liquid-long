@@ -1,4 +1,4 @@
-import { Provider } from '@keydonix/liquid-long-client-library'
+import { Provider } from '@keydonix/liquid-long-client-library/source/liquid-long-ethers-impl'
 import { BigNumber, bigNumberify, defaultAbiCoder } from 'ethers/utils'
 import { TransactionRequest } from 'ethers/providers'
 
