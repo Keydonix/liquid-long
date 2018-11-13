@@ -40,4 +40,7 @@ export class MockProvider implements Provider {
 		if (typeof transaction.data === 'string' && transaction.data.startsWith('0x5988899c')) return defaultAbiCoder.encode(['uint256', 'uint256'], [this.attodaiPaidCost, this.attoethBoughtCost])
 		throw new Error("Method not implemented.")
 	}
+	async estimateGas(transaction: TransactionRequest): Promise<BigNumber> {
+		return new BigNumber(3000000)
+	}
 }
