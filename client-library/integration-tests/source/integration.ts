@@ -2,10 +2,11 @@ require('source-map-support').install()
 
 import 'mocha'
 import { expect } from 'chai'
-import { LiquidLong, TimeoutScheduler, JsonRpcProvider, Scheduler, Provider, Signer } from '@keydonix/liquid-long-client-library'
+import { LiquidLong } from '@keydonix/liquid-long-client-library'
 import { Oasis, Sai, Gem, Tub } from '@keydonix/maker-contract-interfaces';
-import { ContractDependenciesEthers } from './contract-dependencies';
+import { ContractDependenciesEthers } from './maker-contract-dependencies';
 import { getEnv } from './environment'
+import { JsonRpcProvider } from 'ethers/providers'
 import { BigNumber, bigNumberify } from 'ethers/utils';
 
 describe('liquid long tests', async () => {
@@ -27,20 +28,16 @@ describe('liquid long tests', async () => {
 		await spinUntilNodeIsReady(ethereumAddress, liquidLongAddress)
 	})
 
-	let scheduler: Scheduler
-	let provider: Provider
-	let signer: Signer
 	let liquidLong: LiquidLong
 	let oasis: Oasis<BigNumber>
 	let maker: Tub<BigNumber>
 	let dai: Sai<BigNumber>
 	let weth: Gem<BigNumber>
 	beforeEach(async () => {
-		scheduler = new TimeoutScheduler()
-		provider = new JsonRpcProvider(ethereumAddress, 4173);
-		(<JsonRpcProvider>provider).pollingInterval = 10
-		signer = (<JsonRpcProvider>provider).getSigner(0)
-		liquidLong = new LiquidLong(scheduler, provider, signer, liquidLongAddress, 0, 0.01)
+		const provider = new JsonRpcProvider(ethereumAddress)
+		const signer = provider.getSigner(0)
+		provider.pollingInterval = 10
+		liquidLong = LiquidLong.createJsonRpc(ethereumAddress, liquidLongAddress, 0, 0.01, 10)
 		oasis = new Oasis(new ContractDependenciesEthers(provider, signer), oasisAddress)
 		maker = new Tub(new ContractDependenciesEthers(provider, signer), makerAddress)
 		dai = new Sai(new ContractDependenciesEthers(provider, signer), daiAddress)
@@ -91,14 +88,19 @@ async function spinUntilNodeIsReady(ethereumAddress: string, liquidLongAddress: 
 	console.log('waiting for node to get into a reasonable state...')
 	const provider = new JsonRpcProvider(ethereumAddress, 4173)
 	// spin until the provider returns a reasonable value
-	const scheduler = new TimeoutScheduler()
 	while (true) {
 		try {
 			// 0xfa72c53e: providerFeePerEth()
 			if (await provider.call({ to: liquidLongAddress, data: '0xfa72c53e' }) !== '0x') break
 		} catch (error) {
-			scheduler.delay(100)
+			await delay(100)
 		}
 	}
 	console.log('node is in a reasonable state, tests starting')
+}
+
+async function delay(milliseconds: number): Promise<void> {
+	return new Promise<void>(resolve => {
+		setTimeout(resolve, milliseconds)
+	})
 }

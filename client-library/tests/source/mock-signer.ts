@@ -1,7 +1,7 @@
-import { Signer, TransactionRequest, TransactionResponse } from '@keydonix/liquid-long-client-library'
+import { Signer } from '@keydonix/liquid-long-client-library/source/liquid-long-ethers-impl'
 
 export class MockSigner implements Signer {
-	sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse> {
+	sendTransaction(): Promise<any> {
 		throw new Error("Method not implemented.");
 	}
 }

@@ -1,11 +1,11 @@
 import { Dependencies, AbiFunction, AbiParameter, Transaction } from '@keydonix/maker-contract-interfaces'
+import { JsonRpcProvider, JsonRpcSigner } from 'ethers/providers'
 import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
-import { Provider, Signer } from '@keydonix/liquid-long-client-library'
 
 export class ContractDependenciesEthers implements Dependencies<BigNumber> {
-	private readonly provider: Provider
-	private readonly signer: Signer
-	public constructor(provider: Provider, signer: Signer) {
+	private readonly provider: JsonRpcProvider
+	private readonly signer: JsonRpcSigner
+	public constructor(provider: JsonRpcProvider, signer: JsonRpcSigner) {
 		this.provider = provider
 		this.signer = signer
 	}
