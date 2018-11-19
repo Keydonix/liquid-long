@@ -1,18 +1,18 @@
 import { Dependencies, AbiFunction, AbiParameter, Transaction, TransactionReceipt } from './generated/liquid-long'
-import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
-import { TransactionResponse, TransactionRequest } from 'ethers/providers';
+import { utils as EthersUtils, providers as EthersProviders } from 'ethers'
+export { EthersUtils, EthersProviders }
 
 export interface Provider {
 	listAccounts(): Promise<Array<string>>
-	call(transaction: TransactionRequest): Promise<string>
-	estimateGas(transaction: TransactionRequest): Promise<BigNumber>
+	call(transaction: EthersProviders.TransactionRequest): Promise<string>
+	estimateGas(transaction: EthersProviders.TransactionRequest): Promise<EthersUtils.BigNumber>
 }
 
 export interface Signer {
-	sendTransaction(transaction: TransactionRequest): Promise<TransactionResponse>;
+	sendTransaction(transaction: EthersProviders.TransactionRequest): Promise<EthersProviders.TransactionResponse>;
 }
 
-export class ContractDependenciesEthers implements Dependencies<BigNumber> {
+export class ContractDependenciesEthers implements Dependencies<EthersUtils.BigNumber> {
 	private readonly provider: Provider
 	private readonly signer: Signer
 	public constructor(provider: Provider, signer: Signer) {
@@ -20,12 +20,12 @@ export class ContractDependenciesEthers implements Dependencies<BigNumber> {
 		this.signer = signer
 	}
 
-	keccak256 = (utf8String: string) => keccak256(toUtf8Bytes(utf8String))
-	encodeParams = (abiFunction: AbiFunction, parameters: Array<any>) => new AbiCoder().encode(abiFunction.inputs, parameters).substr(2)
-	decodeParams = (abiParameters: Array<AbiParameter>, encoded: string) => new AbiCoder().decode(abiParameters, encoded)
+	keccak256 = (utf8String: string) => EthersUtils.keccak256(EthersUtils.toUtf8Bytes(utf8String))
+	encodeParams = (abiFunction: AbiFunction, parameters: Array<any>) => new EthersUtils.AbiCoder().encode(abiFunction.inputs, parameters).substr(2)
+	decodeParams = (abiParameters: Array<AbiParameter>, encoded: string) => new EthersUtils.AbiCoder().decode(abiParameters, encoded)
 	getDefaultAddress = async () => (await this.provider.listAccounts())[0]
-	call = async (transaction: Transaction<BigNumber>) => await this.provider.call(transaction)
-	submitTransaction = async (transaction: Transaction<BigNumber>) => {
+	call = async (transaction: Transaction<EthersUtils.BigNumber>) => await this.provider.call(transaction)
+	submitTransaction = async (transaction: Transaction<EthersUtils.BigNumber>) => {
 		// https://github.com/ethers-io/ethers.js/issues/321
 		const gasEstimate = (await this.provider.estimateGas(transaction)).toNumber()
 		const gasLimit = Math.min(Math.max(Math.round(gasEstimate * 1.3), 250000), 5000000)
