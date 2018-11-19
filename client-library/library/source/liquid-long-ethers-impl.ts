@@ -1,5 +1,5 @@
 import { Dependencies, AbiFunction, AbiParameter, Transaction, TransactionReceipt } from './generated/liquid-long'
-import * as ethers from 'ethers';
+import { ethers } from 'ethers'
 
 
 export interface Provider {

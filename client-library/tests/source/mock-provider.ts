@@ -1,5 +1,5 @@
 import { Provider } from '@keydonix/liquid-long-client-library/source/liquid-long-ethers-impl'
-import * as ethers from 'ethers';
+import { ethers } from 'ethers'
 
 
 export const QUINTILLION = ethers.utils.bigNumberify(1e9).mul(1e9)

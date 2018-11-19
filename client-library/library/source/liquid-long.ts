@@ -2,8 +2,8 @@ import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
 import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
 import { Scheduler, TimeoutScheduler } from './scheduler'
 import { PolledValue } from './polled-value'
-import { parseHexInt } from './utils';
-import * as ethers from 'ethers';
+import { parseHexInt } from './utils'
+import { ethers } from 'ethers'
 
 
 export class LiquidLong {
