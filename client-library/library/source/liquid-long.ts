@@ -2,18 +2,19 @@ import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
 import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
 import { Scheduler, TimeoutScheduler } from './scheduler'
 import { PolledValue } from './polled-value'
-import { parseHexInt } from './utils';
-import { utils as EthersUtils, providers as EthersProviders } from 'ethers'
+import { parseHexInt } from './utils'
+import { ethers } from 'ethers'
+
 
 export class LiquidLong {
-	private readonly contract: LiquidLongContract<EthersUtils.BigNumber>
+	private readonly contract: LiquidLongContract<ethers.utils.BigNumber>
 	private readonly ethPriceInUsd: PolledValue<number>
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
 
-	static createWeb3(web3Provider: EthersProviders.AsyncSendable, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
-		const provider = new EthersProviders.Web3Provider(web3Provider)
+		const provider = new ethers.providers.Web3Provider(web3Provider)
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = web3PollingInterval
 		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, ethPricePollingFrequency, serviceFeePollingFrequency)
@@ -21,7 +22,7 @@ export class LiquidLong {
 
 	static createJsonRpc(jsonRpcAddress: string, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
-		const provider = new EthersProviders.JsonRpcProvider(jsonRpcAddress);
+		const provider = new ethers.providers.JsonRpcProvider(jsonRpcAddress);
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = jsonRpcPollingInterval
 		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, ethPricePollingFrequency, serviceFeePollingFrequency)
@@ -94,7 +95,7 @@ export class LiquidLong {
 		const daiPerEth = this.ethPriceInUsd.cached
 		const loanSizeInEth = this.getLoanSizeInEth(leverageMultiplier, leverageSizeInEth)
 		const daiToSell = loanSizeInEth * daiPerEth
-		const attodaiToSell = EthersUtils.bigNumberify(Math.floor(daiToSell * 1e9)).mul(1e9)
+		const attodaiToSell = ethers.utils.bigNumberify(Math.floor(daiToSell * 1e9)).mul(1e9)
 		const result = await this.contract.estimateDaiSaleProceeds_(attodaiToSell)
 		const daiSaleProceedsInEth = result._wethBought.div(1e9).toNumber() / 1e9
 		const estimatedCostInEth = loanSizeInEth - daiSaleProceedsInEth
@@ -104,11 +105,11 @@ export class LiquidLong {
 	}
 
 	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<number> => {
-		const leverageMultiplierInPercents = EthersUtils.bigNumberify(Math.round(leverageMultiplier * 100))
-		const leverageSizeInAttoeth = EthersUtils.bigNumberify(Math.round(leverageSizeInEth * 1e9)).mul(1e9)
-		const allowedCostInAttoeth = EthersUtils.bigNumberify(Math.round(costLimitInEth * 1e9)).mul(1e9)
-		const allowedFeeInAttoeth = EthersUtils.bigNumberify(Math.round(feeLimitInEth * 1e9)).mul(1e9)
-		const affiliateFeeInAttoeth = EthersUtils.bigNumberify(0)
+		const leverageMultiplierInPercents = ethers.utils.bigNumberify(Math.round(leverageMultiplier * 100))
+		const leverageSizeInAttoeth = ethers.utils.bigNumberify(Math.round(leverageSizeInEth * 1e9)).mul(1e9)
+		const allowedCostInAttoeth = ethers.utils.bigNumberify(Math.round(costLimitInEth * 1e9)).mul(1e9)
+		const allowedFeeInAttoeth = ethers.utils.bigNumberify(Math.round(feeLimitInEth * 1e9)).mul(1e9)
+		const affiliateFeeInAttoeth = ethers.utils.bigNumberify(0)
 		const affiliateAddress = '0x0000000000000000000000000000000000000000'
 		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
 		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
@@ -119,11 +120,11 @@ export class LiquidLong {
 	}
 
 	public adminDepositEth = async (amount: number): Promise<void> => {
-		await this.contract.wethDeposit({ attachedEth: EthersUtils.bigNumberify(Math.round(amount * 1e9)).mul(1e9) })
+		await this.contract.wethDeposit({ attachedEth: ethers.utils.bigNumberify(Math.round(amount * 1e9)).mul(1e9) })
 	}
 
 	public adminWithdrawEth = async (amount: number): Promise<void> => {
-		await this.contract.wethWithdraw(EthersUtils.bigNumberify(Math.round(amount * 1e9)).mul(1e9))
+		await this.contract.wethWithdraw(ethers.utils.bigNumberify(Math.round(amount * 1e9)).mul(1e9))
 	}
 
 	private fetchEthPriceInUsd = async (): Promise<number> => {
