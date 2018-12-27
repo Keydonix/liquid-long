@@ -2,7 +2,7 @@
 	"private": true,
 	"dependencies": {
 		"@keydonix/liquid-long-client-library": "file:../library",
-		"@keydonix/maker-contract-interfaces": "1.0.1",
+		"@keydonix/maker-contract-interfaces": "2.0.1",
 		"@types/chai": "4.1.4",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "5.2.3",

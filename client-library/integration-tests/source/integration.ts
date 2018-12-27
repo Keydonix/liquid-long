@@ -3,11 +3,11 @@ require('source-map-support').install()
 import 'mocha'
 import { expect } from 'chai'
 import { LiquidLong } from '@keydonix/liquid-long-client-library'
-import { Oasis, Sai, Gem, Tub } from '@keydonix/maker-contract-interfaces';
-import { ContractDependenciesEthers } from './maker-contract-dependencies';
+import { Oasis, Sai, Gem, Tub } from '@keydonix/maker-contract-interfaces'
+import { ContractDependenciesEthers } from './maker-contract-dependencies'
 import { getEnv } from './environment'
 import { JsonRpcProvider } from 'ethers/providers'
-import { BigNumber, bigNumberify } from 'ethers/utils';
+import { BigNumber, bigNumberify } from 'ethers/utils'
 
 describe('liquid long tests', async () => {
 	let ethereumAddress: string
@@ -18,7 +18,7 @@ describe('liquid long tests', async () => {
 	let daiAddress: string
 	before(async () => {
 		ethereumAddress = getEnv('ETHEREUM_HTTP', 'http://localhost:1235')
-		liquidLongAddress = getEnv('ETHEREUM_LIQUID_LONG_ADDRESS', '0x80F8DAA435A9AB4B1802BA56FE7E0ABD0F8AB3D3')
+		liquidLongAddress = getEnv('ETHEREUM_LIQUID_LONG_ADDRESS', '0xf3bcabd8fae29f75be271ebe2499edb4c7c139b7')
 		oasisAddress = getEnv('ETHEREUM_OASIS_ADDRESS', '0x3c6721551c2ba3973560aef3e11d34ce05db4047')
 		wethAddress = getEnv('ETHEREUM_WETH_ADRESS', '0xfcaf25bf38e7c86612a25ff18cb8e09ab07c9885')
 		makerAddress = getEnv('ETHEREUM_TUB_ADRESS', '0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6')
