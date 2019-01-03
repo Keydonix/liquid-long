@@ -72,9 +72,7 @@ contract ERC20Basic {
  */
 contract ERC20 is ERC20Basic {
 	function allowance(address owner, address spender) public view returns (uint256);
-
 	function transferFrom(address from, address to, uint256 value) public returns (bool);
-
 	function approve(address spender, uint256 value) public returns (bool);
 	event Approval(address indexed owner, address indexed spender, uint256 value);
 }
@@ -88,13 +86,11 @@ contract ERC20 is ERC20Basic {
 contract Ownable {
 	address public owner;
 
-
 	event OwnershipRenounced(address indexed previousOwner);
 	event OwnershipTransferred(
 		address indexed previousOwner,
 		address indexed newOwner
 	);
-
 
 	/**
 	 * @dev The Ownable constructor sets the original `owner` of the contract to the sender
@@ -273,7 +269,6 @@ contract Oasis {
 	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint offerId);
 	function getWorseOffer(uint id) public constant returns(uint offerId);
 	function getOffer(uint id) public constant returns (uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem);
-
 	function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount) public returns (uint fill_amt);
 }
 
@@ -320,40 +315,7 @@ contract Maker {
 	function wipe(bytes32 cup, uint wad) public;
 }
 
-contract CdpHolder is Ownable {
-	Maker public maker;
-	mapping(bytes32 => address) public cdpLastOwner;
-
-	constructor(Maker _maker) public {
-		maker = _maker;
-	}
-
-	function recordCdpOwnership(bytes32 _cdpId) public {
-		address _cdpOwner = maker.lad(_cdpId);
-		require(_cdpOwner != address(this));
-		cdpLastOwner[_cdpId] = _cdpOwner;
-	}
-
-	function returnCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public {
-		// Don't bother checking if contract is actual owner, this will throw
-		maker.give(_cdpId, msg.sender);
-		cdpLastOwner[_cdpId] = address(0);
-	}
-
-	function returnUnrecognizedCdp(bytes32 _cdpId, address _user) onlyOwner public {
-		address _cdpOwner = cdpLastOwner[_cdpId];
-		require(_cdpOwner == address(0));
-		maker.give(_cdpId, _user);
-	}
-
-	modifier onlyCdpOwner(bytes32 _cdpId) {
-		require(msg.sender == cdpLastOwner[_cdpId]);
-		_;
-	}
-
-}
-
-contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
+contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	using SafeMath for uint256;
 
 	uint256 public providerFeePerEth;
@@ -378,7 +340,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		bool userOwned;
 	}
 
-	constructor(Oasis _oasis, Maker _maker) CdpHolder(_maker) public payable {
+	constructor(Oasis _oasis, Maker _maker) public payable {
 		providerFeePerEth = 0.01 ether;
 
 		oasis = _oasis;
@@ -390,7 +352,6 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 
 		// Oasis buy/sell
 		dai.approve(address(_oasis), uint256(-1));
-		weth.approve(address(_oasis), uint256(-1));
 		// Wipe
 		dai.approve(address(_maker), uint256(-1));
 		mkr.approve(address(_maker), uint256(-1));
@@ -441,45 +402,6 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		return getPayPriceAndAmount(dai, weth, _attodaiToSell);
 	}
 
-	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _wethPaid, uint256 _daiBought) {
-		return getBuyPriceAndAmount(weth, dai, _attodaiToBuy);
-	}
-
-	// pay_amount and buy_amount form a ratio for price determination, and are not used for limiting order book inspection
-	function getVolumeAtPrice(ERC20 _payGem, ERC20 _buyGem, uint256 _payAmount, uint256 _buyAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
-		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
-		while (_offerId != 0) {
-			(uint256 _offerPayAmount, , uint256 _offerBuyAmount,) = oasis.getOffer(_offerId);
-			if (_offerPayAmount.mul(_payAmount) < _offerBuyAmount.mul(_buyAmount)) {
-				break;
-			}
-			_paidAmount = _paidAmount.add(_offerBuyAmount);
-			_boughtAmount = _boughtAmount.add(_offerPayAmount);
-			_offerId = oasis.getWorseOffer(_offerId);
-		}
-		return (_paidAmount, _boughtAmount);
-	}
-
-	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
-	function getBuyPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _buyDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
-		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
-		while (_offerId != 0) {
-			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
-			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
-			if (_buyRemaining <= _buyAvailableInOffer) {
-				// TODO: safe math after verifying this logic is correct
-				uint256 _payRemaining = (_buyRemaining * _payAvailableInOffer / _buyAvailableInOffer);
-				_paidAmount = _paidAmount.add(_payRemaining);
-				_boughtAmount = _boughtAmount.add(_buyRemaining);
-				break;
-			}
-			_paidAmount = _paidAmount.add(_payAvailableInOffer);
-			_boughtAmount = _boughtAmount.add(_buyAvailableInOffer);
-			_offerId = oasis.getWorseOffer(_offerId);
-		}
-		return (_paidAmount, _boughtAmount);
-	}
-
 	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
 	function getPayPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _payDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
 		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
@@ -500,48 +422,12 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		return (_paidAmount, _boughtAmount);
 	}
 
-	function getCdps(address _user, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
-		uint256 _cdpCount = cdpCount();
-		uint256 _matchCount = 0;
-		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
-			address _cdpOwner = maker.lad(bytes32(_i));
-			if (_cdpOwner != _user) continue;
-			++_matchCount;
-		}
-		_cdps = new CDP[](_matchCount);
-		_matchCount = 0;
-		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
-			(address _cdpOwner, uint256 _collateral,,) = maker.cups(bytes32(_i));
-			if (_cdpOwner != _user) continue;
-			// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
-			uint256 _debtInAttodai = maker.tab(bytes32(_i));
-			// Adjust locked attoeth to factor in peth/weth ratio
-			uint256 _lockedAttoeth = mul27(_collateral + 1, mul18(maker.gap(), maker.per()));
-			// We use two values in case order book can not satisfy closing CDP
-			// Can be closed if _liqudationDebtInAttodai == _debtInAttodai
-			(uint256 _liquidationCostInAttoeth, uint256 _liquidatableDebtInAttodai) = estimateDaiPurchaseCosts(_debtInAttodai);
-			uint256 _liquidationCostAtFeedPriceInAttoeth = div18(_debtInAttodai, ethPriceInUsd());
-			_cdps[_matchCount] = CDP({
-				id: _i,
-				debtInAttodai: _debtInAttodai,
-				lockedAttoeth: _lockedAttoeth,
-				feeInAttoeth: _liquidationCostInAttoeth / 100,
-				liquidationCostInAttoeth: _liquidationCostInAttoeth,
-				liquidatableDebtInAttodai: _liquidatableDebtInAttodai,
-				liquidationCostAtFeedPriceInAttoeth: _liquidationCostAtFeedPriceInAttoeth,
-				userOwned: true
-			});
-			++_matchCount;
-		}
-		return _cdps;
-	}
-
 	function cdpCount() public view returns (uint256 _cdpCount) {
 		return maker.cupi();
 	}
 
 	// TODO: SAFE MATH!
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cdpId) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) whenNotPaused public payable returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
@@ -584,18 +470,5 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		if (_refundDue > 0) {
 			require(msg.sender.call.value(_refundDue)());
 		}
-	}
-
-	// TODO: everything
-	function closeCdp(bytes32 _cdpId) onlyCdpOwner(_cdpId) public payable returns (uint256 /*_costToCloseInAttoeth*/) {
-		/*(, uint256 _collateralInAttopeth, uint256 _debtInAttodai, ) = */maker.cups(bytes32(_cdpId));
-
-		// Size up CDP
-		// Buy DAI off the books to close
-		// Ensure msg.value covers weth spent
-		// buy back spent weth with msg.value
-		// take fee + eth cost of mkr/gov
-		// refund remaining msg.value
-		// give back cdp
 	}
 }
