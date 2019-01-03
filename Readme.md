@@ -1,57 +1,43 @@
 ## Building Contracts
 ```
 cd contracts
-docker image build -t liquid-long-deployer .
+npx ts-node --project .\deployment\tsconfig.json .\deployment\scripts\compile.ts
+```
+
+## Deploying the Contracts
+```
+cd contracts
+docker image build -f Dockerfile-Parity -t parity-liquid-long .
+docker image build -f Dockerfile-Geth -t geth-liquid-long .
 ```
 or
 ```
 cd contracts
 npm install
+# set environment variables according to your environment
+ETHEREUM_HTTP=http://localhost:8545
+ETHEREUM_GAS_PRICE_IN_NANOETH=1
+ETHEREUM_PRIVATE_KEY=fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a
+ETHEREUM_OASIS_ADDRESS=0x3c6721551c2ba3973560aef3e11d34ce05db4047
+ETHEREUM_MAKER_ADRESS=0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6
 npx ts-node --project deployment/tsconfig.json deployment/scripts/deploy.ts
 ```
 
-## Building Client
+## Building Client Library
+Note: You must first [build the contracts](#building-contracts) to generate
 ```
-cd client
+cd client-library
 docker image build -t liquid-long-client .
 ```
 or
 ```
-cd client
+cd client-library/library
 npm install
-npm run integrity
+npx tsc
 ```
 
-## Deploying Contracts
+## Testing and Using with a UI
 ```
-cd contracts
-docker container run --rm -e ETHEREUM_HTTP -e ETHEREUM_GAS_PRICE_IN_NANOETH -e ETHEREUM_PRIVATE_KEY -e ETHEREUM_OASIS_ADDRESS -e ETHEREUM_MAKER_ADRESS liquid-long-deployer
+docker-compose up --build --force-recreate --renew-anon-volumes
 ```
-or
-```
-cd contracts
-set ETHEREUM_HTTP=http://localhost:8545
-set ETHEREUM_GAS_PRICE_IN_NANOETH=1
-set ETHEREUM_PRIVATE_KEY=fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a
-set ETHEREUM_OASIS_ADDRESS=0000000000000000000000000000000000000000
-set ETHEREUM_MAKER_ADRESS=0000000000000000000000000000000000000000
-npx ts-node --project deployment/tsconfig.json deployment/scripts/deploy.ts
-```
-
-## Testing Deployment and UI
-```
-docker-compose up --build --force-recreate
-```
-then point MetaMask at http://localhost:1235 and browse to http://localhost:1234
-
-## Running the UI
-```
-cd client
-docker container run --rm 1234:80 liquid-long-client
-```
-or
-```
-npm install -g simple-server
-npm run
-simple-server client
-```
+then point your UI that uses the library at `http://localhost:1235` (Parity) or `http://localhost:1236` (Geth) and the Liquid Long contract at `0xF3BCABD8FAE29F75BE271EBE2499EDB4C7C139B7`
