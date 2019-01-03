@@ -428,9 +428,20 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		weth.deposit.value(msg.value)();
 	}
 
-	function wethWithdraw(uint256 amount) public onlyOwner {
-		weth.withdraw(amount);
-		owner.transfer(amount);
+	function wethWithdraw(uint256 _amount) public onlyOwner {
+		weth.withdraw(_amount);
+		owner.transfer(_amount);
+	}
+
+	function ethWithdraw() public onlyOwner {
+		// Ensure enough ether is left for PullPayments
+		uint256 _amount = address(this).balance.sub(totalPayments);
+		owner.transfer(_amount);
+	}
+
+	// Affiliates and provider are only ever due raw ether, all tokens are due to owner
+	function transferTokens(ERC20 _token) public onlyOwner {
+		_token.transfer(owner, _token.balanceOf(this));
 	}
 
 	function ethPriceInUsd() public view returns (uint256 _attousd) {
