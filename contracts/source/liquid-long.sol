@@ -467,8 +467,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
 			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_buyRemaining <= _buyAvailableInOffer) {
-				// TODO: safe math after verifying this logic is correct
-				uint256 _payRemaining = (_buyRemaining * _payAvailableInOffer / _buyAvailableInOffer);
+				uint256 _payRemaining = (_buyRemaining.mul(_payAvailableInOffer).div(_buyAvailableInOffer));
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
@@ -487,8 +486,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 			uint256 _payRemaining = _payDesiredAmount.sub(_paidAmount);
 			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_payRemaining <= _payAvailableInOffer) {
-				// TODO: safe math after verifying this logic is correct
-				uint256 _buyRemaining = (_payRemaining * _buyAvailableInOffer / _payAvailableInOffer);
+				uint256 _buyRemaining = (_payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer));
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
@@ -540,11 +538,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		return maker.cupi();
 	}
 
-	// TODO: SAFE MATH!
 	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
-		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth * _leverage / 100;
-		uint256 _loanInAttoeth = _lockedInCdpInAttoeth - _leverageSizeInAttoeth;
+		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage) / 100;
+		uint256 _loanInAttoeth = _lockedInCdpInAttoeth.sub(_leverageSizeInAttoeth);
 		uint256 _providerFeeInAttoeth = mul18(_loanInAttoeth, providerFeePerEth);
 		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
 		uint256 _drawInAttodai = mul18(_loanInAttoeth, uint256(maker.pip().read()));
