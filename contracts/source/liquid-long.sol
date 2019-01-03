@@ -467,7 +467,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
 			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_buyRemaining <= _buyAvailableInOffer) {
-				uint256 _payRemaining = (_buyRemaining.mul(_payAvailableInOffer).div(_buyAvailableInOffer));
+				uint256 _payRemaining = _buyRemaining.mul(_payAvailableInOffer).div(_buyAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
@@ -486,7 +486,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 			uint256 _payRemaining = _payDesiredAmount.sub(_paidAmount);
 			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_payRemaining <= _payAvailableInOffer) {
-				uint256 _buyRemaining = (_payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer));
+				uint256 _buyRemaining = _payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
