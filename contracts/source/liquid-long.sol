@@ -540,7 +540,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 
 	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
-		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage) / 100;
+		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage).div(100);
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth.sub(_leverageSizeInAttoeth);
 		uint256 _providerFeeInAttoeth = mul18(_loanInAttoeth, providerFeePerEth);
 		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
