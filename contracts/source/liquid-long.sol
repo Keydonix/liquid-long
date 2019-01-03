@@ -433,9 +433,9 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment, CdpHolder {
 		owner.transfer(_amount);
 	}
 
-	function ethWithdraw(uint256 _amount) public onlyOwner {
-		// Ensure owner isn't withdrawing ether allocated via PullPayment
-		require(totalPayments.add(_amount) <= address(this).balance);
+	function ethWithdraw() public onlyOwner {
+		// Ensure enough ether is left for PullPayments
+		uint256 _amount = (address(this).balance).sub(totalPayments);
 		owner.transfer(_amount);
 	}
 
