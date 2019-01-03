@@ -329,17 +329,6 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 
 	event NewCup(address user, bytes32 cup);
 
-	struct CDP {
-		uint256 id;
-		uint256 debtInAttodai;
-		uint256 lockedAttoeth;
-		uint256 feeInAttoeth;
-		uint256 liquidationCostInAttoeth;
-		uint256 liquidatableDebtInAttodai;
-		uint256 liquidationCostAtFeedPriceInAttoeth;
-		bool userOwned;
-	}
-
 	constructor(Oasis _oasis, Maker _maker) public payable {
 		providerFeePerEth = 0.01 ether;
 
@@ -420,10 +409,6 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 			_offerId = oasis.getWorseOffer(_offerId);
 		}
 		return (_paidAmount, _boughtAmount);
-	}
-
-	function cdpCount() public view returns (uint256 _cdpCount) {
-		return maker.cupi();
 	}
 
 	// TODO: SAFE MATH!
