@@ -20,7 +20,7 @@ export class ContractDeployer {
 	}
 
 	public async deploy(oasisAddress: Address, makerAddress: Address): Promise<Address> {
-		const contract = await new ContractFactory(this.abi, this.bytecode, this.wallet).deploy(oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix())
+		const contract = await new ContractFactory(this.abi, this.bytecode, this.wallet).deploy(oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix(), {gasPrice: this.gasPrice})
 		return Address.fromHexString(contract.address)
 	}
 }
