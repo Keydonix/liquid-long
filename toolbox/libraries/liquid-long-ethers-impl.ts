@@ -1,38 +1,39 @@
-import { Dependencies, AbiFunction, AbiParameter, Transaction } from './liquid-long'
-import { keccak256, toUtf8Bytes, BigNumber, AbiCoder, bigNumberify } from 'ethers/utils'
-import { TransactionResponse, TransactionRequest, TransactionReceipt } from 'ethers/providers';
+import { Dependencies, AbiFunction, AbiParameter, Transaction, TransactionReceipt } from './liquid-long'
+import { ethers } from 'ethers'
 import { Wallet } from 'ethers/wallet';
 
 export interface Provider {
 	listAccounts(): Promise<Array<string>>
 	send(method: string, params: any): Promise<any>
-	sendTransaction(signedTransaction: string | Promise<string>): Promise<TransactionResponse>
-	call(transaction: TransactionRequest): Promise<string>
-	estimateGas(transaction: TransactionRequest): Promise<BigNumber>
-	getTransactionReceipt(transactionHash: string): Promise<TransactionReceipt>
+	sendTransaction(signedTransaction: string | Promise<string>): Promise<ethers.providers.TransactionResponse>
+	call(transaction: ethers.providers.TransactionRequest): Promise<string>
+	estimateGas(transaction: ethers.providers.TransactionRequest): Promise<ethers.utils.BigNumber>
+	getTransactionReceipt(transactionHash: string): Promise<ethers.providers.TransactionReceipt>
 	getTransactionCount(address: string): Promise<number>
 }
 
-export class LiquidLongDependenciesEthers implements Dependencies<BigNumber> {
+export class LiquidLongDependenciesEthers implements Dependencies<ethers.utils.BigNumber> {
 	private readonly provider: Provider
 	private readonly wallet: Wallet
-	private readonly gasPriceInNeth: number
 	public constructor(provider: Provider, wallet: Wallet, gasPriceInNeth: number) {
 		this.provider = provider
 		this.wallet = wallet
-		this.gasPriceInNeth = gasPriceInNeth
 	}
 
-	keccak256 = (utf8String: string) => keccak256(toUtf8Bytes(utf8String))
-	encodeParams = (abiFunction: AbiFunction, parameters: Array<any>) => new AbiCoder().encode(abiFunction.inputs, parameters).substr(2)
-	decodeParams = (abiParameters: Array<AbiParameter>, encoded: string) => new AbiCoder().decode(abiParameters, encoded)
+	keccak256 = (utf8String: string) => ethers.utils.keccak256(ethers.utils.toUtf8Bytes(utf8String))
+	encodeParams = (abiFunction: AbiFunction, parameters: Array<any>) => new ethers.utils.AbiCoder().encode(abiFunction.inputs, parameters).substr(2)
+	decodeParams = (abiParameters: Array<AbiParameter>, encoded: string) => new ethers.utils.AbiCoder().decode(abiParameters, encoded)
 	getDefaultAddress = async () => (await this.provider.listAccounts())[0]
-	call = async (transaction: Transaction<BigNumber>) => await this.provider.call(transaction)
-	submitTransaction = async (transaction: Transaction<BigNumber>) => {
-		const gasEstimate = await this.provider.estimateGas(transaction)
-		Object.assign({}, transaction, { gasLimit: gasEstimate, gasPrice: bigNumberify(this.gasPriceInNeth).mul(1e9) })
+	call = async (transaction: Transaction<ethers.utils.BigNumber>) => await this.provider.call(transaction)
+	submitTransaction = async (transaction: Transaction<ethers.utils.BigNumber>) => {
+		// https://github.com/ethers-io/ethers.js/issues/321
+		const gasEstimate = (await this.provider.estimateGas(transaction)).toNumber()
+		const gasLimit = Math.min(Math.max(Math.round(gasEstimate * 1.3), 250000), 5000000)
+		// TODO: figure out a way to propagate a warning up to the user in this scenario, we don't currently have a mechanism for error propagation, so will require infrastructure work
+		transaction = Object.assign({}, transaction, { gasLimit: gasLimit })
+		delete transaction.from
 		const receipt = await (await this.wallet.sendTransaction(transaction)).wait()
-		if (receipt.status === undefined) throw new Error(`Receipt status was undefined, expected a number.\n${receipt}`)
-		return { status: receipt.status! }
+		// ethers has `status` on the receipt as optional, even though it isn't and never will be undefined if using a modern network (which this is designed for)
+		return <TransactionReceipt>receipt
 	}
 }
