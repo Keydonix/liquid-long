@@ -99,7 +99,7 @@ export class LiquidLong {
 		const result = await this.contract.estimateDaiSaleProceeds_(attodaiToSell)
 		const daiSaleProceedsInEth = result._wethBought.div(1e9).toNumber() / 1e9
 		const estimatedCostInEth = loanSizeInEth - daiSaleProceedsInEth
-		const low = estimatedCostInEth
+		const low = Math.max(estimatedCostInEth, loanSizeInEth * 0.01)
 		const high = Math.max(low * 2, loanSizeInEth * 0.05)
 		return { low, high }
 	}
