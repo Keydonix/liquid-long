@@ -10,7 +10,7 @@ async function doStuff() {
 	// gather/validate inputs
 	const jsonRpcAddress = getEnv('ETHEREUM_HTTP', 'http://localhost:1235')
 	const gasPrice = parseInt(getEnv('ETHEREUM_GAS_PRICE_IN_NANOETH', '1'), 10)
-	const liquidLongAddress = getEnv('ETHEREUM_LIQUID_LONG_ADDRESS', 'f3bcabd8fae29f75be271ebe2499edb4c7c139b7')
+	const liquidLongAddress = getEnv('ETHEREUM_LIQUID_LONG_ADDRESS', '80F8DAa435a9AB4B1802Ba56FE7e0abd0f8aB3D3')
 	const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY', 'fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a'))
 
 	const provider = new JsonRpcProvider(jsonRpcAddress, 4173)
