@@ -339,6 +339,18 @@ contract Maker {
 	function wipe(bytes32 cup, uint wad) public;
 }
 
+contract DSProxy {
+	// Technically from DSAuth
+	address public owner;
+
+	function execute(address _target, bytes _data) public payable returns (bytes32 response);
+}
+
+contract ProxyRegistry {
+	mapping(address => DSProxy) public proxies;
+	function build(address owner) public returns (DSProxy proxy);
+}
+
 contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	using SafeMath for uint256;
 	using SafeMathFixedPoint for uint256;
@@ -352,9 +364,11 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	Peth public peth;
 	Mkr public mkr;
 
+	ProxyRegistry public proxyRegistry;
+
 	event NewCup(address user, bytes32 cup);
 
-	constructor(Oasis _oasis, Maker _maker) public payable {
+	constructor(Oasis _oasis, Maker _maker, ProxyRegistry _proxyRegistry) public payable {
 		providerFeePerEth = 0.01 ether;
 
 		oasis = _oasis;
@@ -373,6 +387,8 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		weth.approve(address(_maker), uint256(-1));
 		// Lock
 		peth.approve(address(_maker), uint256(-1));
+
+		proxyRegistry = _proxyRegistry;
 
 		if (msg.value > 0) {
 			weth.deposit.value(msg.value)();
@@ -468,8 +484,17 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		}
 
 		emit NewCup(msg.sender, _cdpId);
-		// Send the CDP to the user
-		maker.give(_cdpId, msg.sender);
+
+		giveCdpToProxy(msg.sender, _cdpId);
+	}
+
+	function giveCdpToProxy(address _ownerOfProxy, bytes32 _cdpId) private {
+		DSProxy _proxy = proxyRegistry.proxies(_ownerOfProxy);
+		if (_proxy == DSProxy(0) || _proxy.owner() != _ownerOfProxy) {
+			_proxy = proxyRegistry.build(_ownerOfProxy);
+		}
+		// Send the CDP to the owner's proxy instead of directly to owner
+		maker.give(_cdpId, proxyRegistry);
 	}
 
 	// extracted function to mitigate stack depth issues

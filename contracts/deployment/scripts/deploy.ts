@@ -33,6 +33,7 @@ async function doStuff() {
 	const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY'))
 	const oasisAddress = Address.fromHexString(getEnv('ETHEREUM_OASIS_ADDRESS'))
 	const makerAddress = Address.fromHexString(getEnv('ETHEREUM_MAKER_ADRESS'))
+	const proxyRegistryAddress = Address.fromHexString(getEnv('ETHEREUM_PROXY_REGISTRY'))
 
 	console.log('compiling contracts...')
 	const contractCompiler = new ContractCompiler()
@@ -44,7 +45,7 @@ async function doStuff() {
 
 	console.log('deploying contracts...')
 	const contractDeployer = new ContractDeployer(jsonRpcAddress, gasPriceInNanoeth, privateKey, abi, bytecode)
-	const liquidLongContractAddress = await contractDeployer.deploy(oasisAddress, makerAddress)
+	const liquidLongContractAddress = await contractDeployer.deploy(oasisAddress, makerAddress, proxyRegistryAddress)
 	console.log(`LiquidLong deployed to ${liquidLongContractAddress.toHexString()}`)
 }
 

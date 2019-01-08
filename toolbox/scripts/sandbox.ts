@@ -2550,7 +2550,7 @@ async function doStuff() {
 	const provider = new JsonRpcProvider('http://localhost:1235', 4173)
 	const wallet = new Wallet('0xfae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a', provider)
 	const dependencies = new LiquidLongDependenciesEthers(provider, wallet, 1)
-	const liquidLong = new LiquidLong(dependencies, 'f3bcabd8fae29f75be271ebe2499edb4c7c139b7')
+	const liquidLong = new LiquidLong(dependencies, '80F8DAa435a9AB4B1802Ba56FE7e0abd0f8aB3D3')
 	// const maker = new Contract('0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6', makerAbi, wallet)
 	// const oasis = new Contract('0x3c6721551c2ba3973560aef3e11d34ce05db4047', oasisAbi, wallet)
 

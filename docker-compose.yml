@@ -34,7 +34,7 @@ services:
             - parity
         environment:
             - ETHEREUM_HTTP=http://parity:8545
-            - ETHEREUM_LIQUID_LONG_ADDRESS=0xF3BCABD8FAE29F75BE271EBE2499EDB4C7C139B7
+            - ETHEREUM_LIQUID_LONG_ADDRESS=0x80F8DAa435a9AB4B1802Ba56FE7e0abd0f8aB3D3
 
     client-library-geth:
         build: ./client-library
@@ -42,4 +42,4 @@ services:
             - geth
         environment:
             - ETHEREUM_HTTP=http://geth:8545
-            - ETHEREUM_LIQUID_LONG_ADDRESS=0xF3BCABD8FAE29F75BE271EBE2499EDB4C7C139B7
+            - ETHEREUM_LIQUID_LONG_ADDRESS=0x80F8DAa435a9AB4B1802Ba56FE7e0abd0f8aB3D3
