@@ -19,8 +19,13 @@ export class ContractDeployer {
 		this.gasPrice = gasPriceInNanoeth * 10**9
 	}
 
-	public async deploy(oasisAddress: Address, makerAddress: Address): Promise<Address> {
-		const contract = await new ContractFactory(this.abi, this.bytecode, this.wallet).deploy(oasisAddress.toHexStringWithPrefix(), makerAddress.toHexStringWithPrefix(), {gasPrice: this.gasPrice})
+	public async deploy(oasisAddress: Address, makerAddress: Address, proxyRegistryAddress: Address): Promise<Address> {
+		const contract = await new ContractFactory(this.abi, this.bytecode, this.wallet).deploy(
+			oasisAddress.toHexStringWithPrefix(),
+			makerAddress.toHexStringWithPrefix(),
+			proxyRegistryAddress.toHexStringWithPrefix(),
+			{gasPrice: this.gasPrice},
+			)
 		return Address.fromHexString(contract.address)
 	}
 }
