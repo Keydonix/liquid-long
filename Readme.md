@@ -1,7 +1,7 @@
 ## Building Contracts
 ```
 cd contracts
-npx ts-node --project .\deployment\tsconfig.json .\deployment\scripts\compile.ts
+npx ts-node --project ./deployment/tsconfig.json ./deployment/scripts/compile.ts
 ```
 
 ## Deploying the Contracts

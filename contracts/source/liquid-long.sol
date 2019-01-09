@@ -453,12 +453,12 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// TODO: change affiliate fee to be 50% of service fee, no parameter needed
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, uint256 _affiliateFeeInAttoeth, address _affiliateAddress) public payable wethBalanceUnchanged returns (bytes32 _cdpId) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceUnchanged returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage).div(100);
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth.sub(_leverageSizeInAttoeth);
-		uint256 _providerFeeInAttoeth = _loanInAttoeth.mul18(providerFeePerEth);
-		require(_providerFeeInAttoeth <= _allowedFeeInAttoeth);
+		uint256 _feeInAttoeth = _loanInAttoeth.mul18(providerFeePerEth);
+		require(_feeInAttoeth <= _allowedFeeInAttoeth);
 		uint256 _drawInAttodai = _loanInAttoeth.mul18(uint256(maker.pip().read()));
 		uint256 _attopethLockedInCdp = _lockedInCdpInAttoeth.div27(maker.per());
 
@@ -473,14 +473,16 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		// Withdraw DAI from CDP
 		maker.draw(_cdpId, _drawInAttodai);
 		// Sell DAI for WETH
-		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _providerFeeInAttoeth, _affiliateFeeInAttoeth, _loanInAttoeth);
+		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth, _loanInAttoeth);
 		// Pay provider fee
-		if (_providerFeeInAttoeth != 0) {
-			asyncSend(owner, _providerFeeInAttoeth);
-		}
-		// Pay affiliate fee
-		if (_affiliateFeeInAttoeth != 0) {
-			asyncSend(_affiliateAddress, _affiliateFeeInAttoeth);
+		if (_feeInAttoeth != 0) {
+			// Fee charged is constant. If affiliate provided, split fee with affiliate
+			if (_affiliateAddress == 0x0) {
+				asyncSend(owner, _feeInAttoeth);
+			} else {
+				asyncSend(owner, _feeInAttoeth.div(2));
+				asyncSend(_affiliateAddress, _feeInAttoeth.div(2));
+			}
 		}
 
 		emit NewCup(msg.sender, _cdpId);
@@ -498,10 +500,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// extracted function to mitigate stack depth issues
-	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _providerFeeInAttoeth, uint256 _affiliateFeeInAttoeth, uint256 _loanInAttoeth) private {
+	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _providerFeeInAttoeth, uint256 _loanInAttoeth) private {
 		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
 		// SafeMath failure below catches not enough eth provided
-		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth).sub(_affiliateFeeInAttoeth);
+		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth);
 		if (_refundDue > 0) {
 			require(msg.sender.call.value(_refundDue)());
 		}
