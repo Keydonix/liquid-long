@@ -500,10 +500,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// extracted function to mitigate stack depth issues
-	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _providerFeeInAttoeth, uint256 _loanInAttoeth) private {
+	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _feeInAttoeth, uint256 _loanInAttoeth) private {
 		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
 		// SafeMath failure below catches not enough eth provided
-		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_providerFeeInAttoeth);
+		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_feeInAttoeth);
 		if (_refundDue > 0) {
 			require(msg.sender.call.value(_refundDue)());
 		}
