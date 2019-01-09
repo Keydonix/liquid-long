@@ -2,6 +2,12 @@
 	"description": "N/A",
 	"repository": {},
 	"license": "Unlicense",
+	"scripts": {
+		"build": "ts-node --project ./deployment/tsconfig.json ./deployment/scripts/compile.ts",
+		"build:docker": "npm run build:docker:geth && npm run build:docker:parity",
+		"build:docker:geth": "docker image build -f Dockerfile-Geth -t geth-liquid-long .",
+		"build:docker:parity": "docker image build -f Dockerfile-Parity -t parity-liquid-long ."
+	},
 	"devDependencies": {
 		"@types/fs-readfile-promise": "3.0.0",
 		"@types/node": "10.1.2",
