@@ -13,12 +13,7 @@ export interface Provider {
 }
 
 export class LiquidLongDependenciesEthers implements Dependencies<ethers.utils.BigNumber> {
-	private readonly provider: Provider
-	private readonly wallet: Wallet
-	public constructor(provider: Provider, wallet: Wallet, gasPriceInNeth: number) {
-		this.provider = provider
-		this.wallet = wallet
-	}
+	public constructor(private readonly provider: Provider, private readonly wallet: Wallet, private readonly gasPriceInNanoeth: number) {}
 
 	keccak256 = (utf8String: string) => ethers.utils.keccak256(ethers.utils.toUtf8Bytes(utf8String))
 	encodeParams = (abiFunction: AbiFunction, parameters: Array<any>) => new ethers.utils.AbiCoder().encode(abiFunction.inputs, parameters).substr(2)
@@ -29,8 +24,8 @@ export class LiquidLongDependenciesEthers implements Dependencies<ethers.utils.B
 		// https://github.com/ethers-io/ethers.js/issues/321
 		const gasEstimate = (await this.provider.estimateGas(transaction)).toNumber()
 		const gasLimit = Math.min(Math.max(Math.round(gasEstimate * 1.3), 250000), 5000000)
-		// TODO: figure out a way to propagate a warning up to the user in this scenario, we don't currently have a mechanism for error propagation, so will require infrastructure work
-		transaction = Object.assign({}, transaction, { gasLimit: gasLimit })
+		const gasPrice = ethers.utils.bigNumberify(this.gasPriceInNanoeth * 1e9)
+		transaction = Object.assign({}, transaction, { gasLimit: gasLimit, gasPrice: gasPrice })
 		delete transaction.from
 		const receipt = await (await this.wallet.sendTransaction(transaction)).wait()
 		// ethers has `status` on the receipt as optional, even though it isn't and never will be undefined if using a modern network (which this is designed for)
