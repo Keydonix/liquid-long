@@ -250,7 +250,8 @@ contract PullPayment {
 		address payee = msg.sender;
 		uint256 payment = payments[payee];
 
-		require(payment != 0);
+		// the following line is commented out from the original OpenZeppelin contract because it doesn't buy us much in our situation and it complicates testing as our test suite can no longer blindly withdraw payments
+		// require(payment != 0);
 		require(address(this).balance >= payment);
 
 		totalPayments = totalPayments.sub(payment);

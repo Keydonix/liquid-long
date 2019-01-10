@@ -17,7 +17,7 @@ export class ByteArray extends Uint8Array {
 		return `0x${this.toHexString()}`
 	}
 	static fromHexString(input: string): ByteArray {
-		const match = /^(?:0x)?([a-zA-Z0-9][a-zA-Z0-9]*)$/.exec(input)
+		const match = /^(?:0x)?([a-fA-F0-9][a-fA-F0-9]*)$/.exec(input)
 		if (match === null) throw new Error(`${input} must be an even length hex string optionally prefixed with 0x`)
 		return new ByteArray(arrayify(`0x${match[1]}`))
 	}

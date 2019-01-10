@@ -3,12 +3,8 @@ import { JsonRpcProvider, JsonRpcSigner } from 'ethers/providers'
 import { keccak256, toUtf8Bytes, BigNumber, AbiCoder } from 'ethers/utils'
 
 export class ContractDependenciesEthers implements Dependencies<BigNumber> {
-	private readonly provider: JsonRpcProvider
-	private readonly signer: JsonRpcSigner
-	public constructor(provider: JsonRpcProvider, signer: JsonRpcSigner) {
-		this.provider = provider
-		this.signer = signer
-	}
+
+	public constructor(private readonly provider: JsonRpcProvider, private readonly signer: JsonRpcSigner) {}
 
 	keccak256 = (utf8String: string) => keccak256(toUtf8Bytes(utf8String))
 	encodeParams = (abiFunction: AbiFunction, parameters: Array<any>) => new AbiCoder().encode(abiFunction.inputs, parameters).substr(2)

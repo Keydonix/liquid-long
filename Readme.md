@@ -40,4 +40,4 @@ npx tsc
 ```
 docker-compose up --build --force-recreate --renew-anon-volumes
 ```
-then point your UI that uses the library at `http://localhost:1235` (Parity) or `http://localhost:1236` (Geth) and the Liquid Long contract at `0x80F8DAa435a9AB4B1802Ba56FE7e0abd0f8aB3D3`
+then point your UI that uses the library at `http://localhost:1235` (Parity) or `http://localhost:1236` (Geth) and the Liquid Long contract at `0xB03CF72BC5A9A344AAC43534D664917927367487`
