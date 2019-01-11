@@ -497,7 +497,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 			_proxy = proxyRegistry.build(_ownerOfProxy);
 		}
 		// Send the CDP to the owner's proxy instead of directly to owner
-		maker.give(_cdpId, proxyRegistry);
+		maker.give(_cdpId, _proxy);
 	}
 
 	// extracted function to mitigate stack depth issues
