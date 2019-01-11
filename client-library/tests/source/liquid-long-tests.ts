@@ -17,7 +17,7 @@ describe('LiquidLong', async () => {
 		mockScheduler = new MockScheduler()
 		mockProvider = new MockProvider()
 		mockSigner = new MockSigner()
-		liquidLong = new LiquidLong(mockScheduler, mockProvider, mockSigner, ZERO_ADRESS, 1, 0.01)
+		liquidLong = new LiquidLong(mockScheduler, mockProvider, mockSigner, ZERO_ADRESS, 1, 0.01, 1)
 	})
 
 	afterEach(async () => {

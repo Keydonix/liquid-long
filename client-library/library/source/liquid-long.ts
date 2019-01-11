@@ -12,24 +12,25 @@ export class LiquidLong {
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
 
-	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
 		const provider = new ethers.providers.Web3Provider(web3Provider)
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = web3PollingInterval
-		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, ethPricePollingFrequency, serviceFeePollingFrequency)
+		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
 	}
 
-	static createJsonRpc(jsonRpcAddress: string, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createJsonRpc(jsonRpcAddress: string, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
 		const provider = new ethers.providers.JsonRpcProvider(jsonRpcAddress);
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = jsonRpcPollingInterval
-		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, ethPricePollingFrequency, serviceFeePollingFrequency)
+		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
 	}
 
-	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
-		this.contract = new LiquidLongContract(new ContractDependenciesEthers(provider, signer), liquidLongAddress)
+	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
+		const contractDependencies = new ContractDependenciesEthers(provider, signer, async () => defaultGasPriceInNanoeth)
+		this.contract = new LiquidLongContract(contractDependencies, liquidLongAddress)
 		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency, defaultEthPriceInUsd)
 		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency, defaultProviderFeeRate)
 		this.awaitReady = Promise.all([this.ethPriceInUsd.latest, this.providerFeeRate.latest]).then(() => {})
@@ -104,15 +105,14 @@ export class LiquidLong {
 		return { low, high }
 	}
 
-	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number): Promise<number> => {
+	public openPosition = async (leverageMultiplier: number, leverageSizeInEth: number, costLimitInEth: number, feeLimitInEth: number, affiliateAddress?: string): Promise<number> => {
 		const leverageMultiplierInPercents = ethers.utils.bigNumberify(Math.round(leverageMultiplier * 100))
 		const leverageSizeInAttoeth = ethers.utils.bigNumberify(Math.round(leverageSizeInEth * 1e9)).mul(1e9)
 		const allowedCostInAttoeth = ethers.utils.bigNumberify(Math.round(costLimitInEth * 1e9)).mul(1e9)
 		const allowedFeeInAttoeth = ethers.utils.bigNumberify(Math.round(feeLimitInEth * 1e9)).mul(1e9)
-		const affiliateFeeInAttoeth = ethers.utils.bigNumberify(0)
-		const affiliateAddress = '0x0000000000000000000000000000000000000000'
-		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth).add(affiliateFeeInAttoeth)
-		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
+		const totalAttoeth = leverageSizeInAttoeth.add(allowedCostInAttoeth).add(allowedFeeInAttoeth)
+		affiliateAddress = LiquidLong.validateAndNormalizeAffiliateAddress(affiliateAddress || '0000000000000000000000000000000000000000')
+		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateAddress, { attachedEth: totalAttoeth })
 		const newCupEvent = <{ name: 'NewCup', parameters: {user: string, cup: string } }>events.find(x => x.name === 'NewCup')
 		if (!newCupEvent) throw new Error(`Expected 'newCup' event when calling 'openCdp' but no such event found.`)
 		if (!newCupEvent.parameters || !newCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'newCup' event.\n${newCupEvent}`)
@@ -123,8 +123,20 @@ export class LiquidLong {
 		await this.contract.wethDeposit({ attachedEth: ethers.utils.bigNumberify(Math.round(amount * 1e9)).mul(1e9) })
 	}
 
-	public adminWithdrawEth = async (amount: number): Promise<void> => {
+	public adminWithdrawWeth = async (amount: number): Promise<void> => {
 		await this.contract.wethWithdraw(ethers.utils.bigNumberify(Math.round(amount * 1e9)).mul(1e9))
+	}
+
+	public adminWithdrawFees = async (): Promise<void> => {
+		await this.contract.withdrawPayments()
+	}
+
+	public adminTransferOwnership = async (newOwner: string): Promise<void> => {
+		await this.contract.transferOwnership(newOwner)
+	}
+
+	public adminAcceptOwnership = async (): Promise<void> => {
+		await this.contract.claimOwnership()
 	}
 
 	private fetchEthPriceInUsd = async (): Promise<number> => {
@@ -141,6 +153,12 @@ export class LiquidLong {
 		const ethLockedInCdp = leverageSizeInEth * leverageMultiplier
 		const loanInEth = ethLockedInCdp - leverageSizeInEth
 		return loanInEth
+	}
+
+	static validateAndNormalizeAffiliateAddress = (affiliateAddress: string): string => {
+		const match = /^(?:0x)?([a-fA-F0-9]{40})$/.exec(affiliateAddress)
+		if (!match) throw new Error(`Invalid affiliate address: ${affiliateAddress}`)
+		return match[1]
 	}
 }
 

@@ -43,4 +43,8 @@ export class MockProvider implements Provider {
 	async estimateGas(transaction: ethers.providers.TransactionRequest): Promise<ethers.utils.BigNumber> {
 		return new ethers.utils.BigNumber(3000000)
 	}
+
+	async getTransactionCount(address: string): Promise<number> {
+		return 0;
+	}
 }
