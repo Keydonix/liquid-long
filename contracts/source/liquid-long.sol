@@ -436,7 +436,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		// Sell DAI for WETH
 		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth);
 		// Pay provider fee
-		if (_affiliateAddress == 0x0) {
+		if (_affiliateAddress != address(0x0)) {
 			// Fee charged is constant. If affiliate provided, split fee with affiliate
 			// Don't bother sending eth to owner, the owner has all non-async-sent eth anyway
 			weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
