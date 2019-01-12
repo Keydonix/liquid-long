@@ -405,14 +405,14 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (_paidAmount, _boughtAmount);
 	}
 
-	modifier wethBalanceNotDecreased() {
+	modifier wethBalanceIncreased() {
 		uint256 _startingAttowethBalance = weth.balanceOf(this);
 		_;
-		require(weth.balanceOf(this) >= _startingAttowethBalance);
+		require(weth.balanceOf(this) > _startingAttowethBalance);
 	}
 
 	// TODO: change affiliate fee to be 50% of service fee, no parameter needed
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceNotDecreased returns (bytes32 _cdpId) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceIncreased returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage).div(100);
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth.sub(_leverageSizeInAttoeth);
@@ -434,7 +434,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		// Sell DAI for WETH
 		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth);
 		// Pay provider fee
-		if (_affiliateAddress != address(0x0)) {
+		if (_affiliateAddress != address(0)) {
 			// Fee charged is constant. If affiliate provided, split fee with affiliate
 			// Don't bother sending eth to owner, the owner has all non-async-sent eth anyway
 			weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
