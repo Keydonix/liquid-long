@@ -231,46 +231,6 @@ contract Pausable is Ownable {
 	}
 }
 
-/**
- * @title PullPayment
- * @dev Base contract supporting async send for pull payments. Inherit from this
- * contract and use asyncSend instead of send or transfer.
- * https://github.com/OpenZeppelin/openzeppelin-solidity/blob/master/contracts/payment/PullPayment.sol
- */
-contract PullPayment {
-	using SafeMath for uint256;
-
-	mapping(address => uint256) public payments;
-	uint256 public totalPayments;
-
-	/**
-	* @dev Withdraw accumulated balance, called by payee.
-	*/
-	function withdrawPayments() public {
-		address payee = msg.sender;
-		uint256 payment = payments[payee];
-
-		// the following line is commented out from the original OpenZeppelin contract because it doesn't buy us much in our situation and it complicates testing as our test suite can no longer blindly withdraw payments
-		// require(payment != 0);
-		require(address(this).balance >= payment);
-
-		totalPayments = totalPayments.sub(payment);
-		payments[payee] = 0;
-
-		payee.transfer(payment);
-	}
-
-	/**
-	* @dev Called by the payer to store the sent amount as credit to be pulled.
-	* @param dest The destination address of the funds.
-	* @param amount The amount to transfer.
-	*/
-	function asyncSend(address dest, uint256 amount) internal {
-		payments[dest] = payments[dest].add(amount);
-		totalPayments = totalPayments.add(amount);
-	}
-}
-
 contract Dai is ERC20 {
 
 }
@@ -352,7 +312,7 @@ contract ProxyRegistry {
 	function build(address owner) public returns (DSProxy proxy);
 }
 
-contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
+contract LiquidLong is Ownable, Claimable, Pausable {
 	using SafeMath for uint256;
 	using SafeMathFixedPoint for uint256;
 
@@ -410,12 +370,10 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	function ethWithdraw() public onlyOwner {
-		// Ensure enough ether is left for PullPayments
-		uint256 _amount = address(this).balance.sub(totalPayments);
+		uint256 _amount = address(this).balance;
 		owner.transfer(_amount);
 	}
 
-	// Affiliates and provider are only ever due raw ether, all tokens are due to owner
 	function transferTokens(ERC20 _token) public onlyOwner {
 		_token.transfer(owner, _token.balanceOf(this));
 	}
@@ -433,7 +391,7 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
 		while (_offerId != 0) {
 			uint256 _payRemaining = _payDesiredAmount.sub(_paidAmount);
-			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			(uint256 _buyAvailableInOffer,  , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_payRemaining <= _payAvailableInOffer) {
 				uint256 _buyRemaining = _payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
@@ -447,14 +405,14 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		return (_paidAmount, _boughtAmount);
 	}
 
-	modifier wethBalanceUnchanged() {
+	modifier wethBalanceIncreased() {
 		uint256 _startingAttowethBalance = weth.balanceOf(this);
 		_;
-		require(weth.balanceOf(this) >= _startingAttowethBalance);
+		require(weth.balanceOf(this) > _startingAttowethBalance);
 	}
 
 	// TODO: change affiliate fee to be 50% of service fee, no parameter needed
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceUnchanged returns (bytes32 _cdpId) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceIncreased returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage).div(100);
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth.sub(_leverageSizeInAttoeth);
@@ -463,8 +421,8 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		uint256 _drawInAttodai = _loanInAttoeth.mul18(uint256(maker.pip().read()));
 		uint256 _attopethLockedInCdp = _lockedInCdpInAttoeth.div27(maker.per());
 
-		// Convert ETH to WETH (only the value amount, excludes loan amount which is already WETH)
-		weth.deposit.value(_leverageSizeInAttoeth)();
+		// Convert all incoming eth to weth (we will pay back later if too much)
+		weth.deposit.value(msg.value)();
 		// Open CDP
 		_cdpId = maker.open();
 		// Convert WETH into PETH
@@ -474,16 +432,12 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 		// Withdraw DAI from CDP
 		maker.draw(_cdpId, _drawInAttodai);
 		// Sell DAI for WETH
-		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth, _loanInAttoeth);
+		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth);
 		// Pay provider fee
-		if (_feeInAttoeth != 0) {
+		if (_affiliateAddress != address(0)) {
 			// Fee charged is constant. If affiliate provided, split fee with affiliate
-			if (_affiliateAddress == 0x0) {
-				asyncSend(owner, _feeInAttoeth);
-			} else {
-				asyncSend(owner, _feeInAttoeth.div(2));
-				asyncSend(_affiliateAddress, _feeInAttoeth.div(2));
-			}
+			// Don't bother sending eth to owner, the owner has all non-async-sent eth anyway
+			weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
 		}
 
 		emit NewCup(msg.sender, _cdpId);
@@ -501,16 +455,13 @@ contract LiquidLong is Ownable, Claimable, Pausable, PullPayment {
 	}
 
 	// extracted function to mitigate stack depth issues
-	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _feeInAttoeth, uint256 _loanInAttoeth) private {
+	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _feeInAttoeth) private {
 		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
 		// SafeMath failure below catches not enough eth provided
 		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_feeInAttoeth);
 		if (_refundDue > 0) {
+			weth.withdraw(_refundDue);
 			require(msg.sender.call.value(_refundDue)());
-		}
-
-		if (_loanInAttoeth > _wethBoughtInAttoweth) {
-			weth.deposit.value(_loanInAttoeth - _wethBoughtInAttoweth)();
 		}
 	}
 }
