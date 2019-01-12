@@ -370,12 +370,10 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	function ethWithdraw() public onlyOwner {
-		// Ensure enough ether is left for PullPayments
 		uint256 _amount = address(this).balance;
 		owner.transfer(_amount);
 	}
 
-	// Affiliates and provider are only ever due raw ether, all tokens are due to owner
 	function transferTokens(ERC20 _token) public onlyOwner {
 		_token.transfer(owner, _token.balanceOf(this));
 	}
