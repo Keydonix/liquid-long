@@ -391,7 +391,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
 		while (_offerId != 0) {
 			uint256 _payRemaining = _payDesiredAmount.sub(_paidAmount);
-			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			(uint256 _buyAvailableInOffer,  , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_payRemaining <= _payAvailableInOffer) {
 				uint256 _buyRemaining = _payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
@@ -405,14 +405,14 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (_paidAmount, _boughtAmount);
 	}
 
-	modifier wethBalanceUnchanged() {
+	modifier wethBalanceNotDecreased() {
 		uint256 _startingAttowethBalance = weth.balanceOf(this);
 		_;
 		require(weth.balanceOf(this) >= _startingAttowethBalance);
 	}
 
 	// TODO: change affiliate fee to be 50% of service fee, no parameter needed
-	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceUnchanged returns (bytes32 _cdpId) {
+	function openCdp(uint256 _leverage, uint256 _leverageSizeInAttoeth, uint256 _allowedFeeInAttoeth, address _affiliateAddress) public payable wethBalanceNotDecreased returns (bytes32 _cdpId) {
 		require(_leverage >= 100 && _leverage <= 300);
 		uint256 _lockedInCdpInAttoeth = _leverageSizeInAttoeth.mul(_leverage).div(100);
 		uint256 _loanInAttoeth = _lockedInCdpInAttoeth.sub(_leverageSizeInAttoeth);
