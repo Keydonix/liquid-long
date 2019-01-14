@@ -255,6 +255,7 @@ contract Oasis {
 	function getWorseOffer(uint id) public constant returns(uint offerId);
 	function getOffer(uint id) public constant returns (uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem);
 	function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount) public returns (uint fill_amt);
+	function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_amount) public returns (uint fill_amt);
 }
 
 contract Medianizer {
@@ -295,8 +296,10 @@ contract Maker {
 	function open() public returns (bytes32 cup);
 	function give(bytes32 cup, address guy) public;
 	function lock(bytes32 cup, uint wad) public;
+	function free(bytes32 cup, uint wad) public;
 	function draw(bytes32 cup, uint wad) public;
 	function join(uint wad) public;
+	function exit(uint wad) public;
 	function wipe(bytes32 cup, uint wad) public;
 }
 
@@ -405,6 +408,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return (_paidAmount, _boughtAmount);
 	}
 
+	modifier ethBalanceIncreased() {
+		uint256 _startingAttoethBalance = address(this).balance;
+		_;
+		require(address(this).balance > _startingAttoethBalance);
+	}
+
 	modifier wethBalanceIncreased() {
 		uint256 _startingAttowethBalance = weth.balanceOf(this);
 		_;
@@ -463,5 +472,37 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			weth.withdraw(_refundDue);
 			require(msg.sender.call.value(_refundDue)());
 		}
+	}
+
+	// closeCdp is intended to be a delegate call that executes as a user's DSProxy
+	function closeCdp(LiquidLong _liquidLong, bytes32 _cdpId, uint256 _minimumValueInAttoeth) external ethBalanceIncreased returns (uint256 valueLeftInCdpInAttoeth) {
+		maker.give(_cdpId, _liquidLong);
+		valueLeftInCdpInAttoeth = _liquidLong.closeGiftedCdp(_cdpId, _minimumValueInAttoeth);
+		require(maker.lad(_cdpId) == address(this));
+	}
+
+	// Close cdp that was just received as part of the same transaction
+	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth) external wethBalanceIncreased returns (uint256 valueLeftInCdpInAttoeth) {
+		(address _owner, uint256 _lockedPethinAttopeth, uint256 _art, uint256 _debtInAttodai) = maker.cups(_cdpId); _owner; _lockedPethinAttopeth;
+		uint256 _wethSoldInAttoweth = oasis.buyAllAmount(dai, _debtInAttodai, weth, 0);
+		maker.wipe(_cdpId, _debtInAttodai);
+		uint256 _debtInAttosomething = _art.mul27(maker.chi()); // TODO: need this to be in eth
+		uint256 _providerFee = _wethSoldInAttoweth.mul18(providerFeePerEth);
+
+		uint256 _wethToPethConversationRay = maker.per();
+		uint256 _pethToTakeFromCdpInAttopeth = (_wethSoldInAttoweth.add(_debtInAttosomething).add(_providerFee)).div27(_wethToPethConversationRay);
+
+		// Ensure remaining peth in CDP is greater than the value they requested as minimum value
+		require (_lockedPethinAttopeth.sub(_pethToTakeFromCdpInAttopeth) > _minimumValueInAttoeth.div27(_wethToPethConversationRay));
+
+		// Pull that value from the CDP, convert it back to WETH for next time
+		// We rely on "free" reverting the transaction if there is not enough peth to profitably close CDP
+		maker.free(_cdpId, _pethToTakeFromCdpInAttopeth);
+		maker.exit(_pethToTakeFromCdpInAttopeth);
+
+		// Cannot use _owner, since LiquidLong is the owner. DSProxy will have issued this request, send it back to DSProxy
+		maker.give(_cdpId, msg.sender);
+
+		return _lockedPethinAttopeth.sub(_pethToTakeFromCdpInAttopeth).mul27(_wethToPethConversationRay);
 	}
 }
