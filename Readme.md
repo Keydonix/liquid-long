@@ -1,6 +1,7 @@
 ## Building Contracts
 ```
 cd contracts
+npm install
 npx ts-node --project ./deployment/tsconfig.json ./deployment/scripts/compile.ts
 ```
 

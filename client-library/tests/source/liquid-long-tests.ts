@@ -24,6 +24,17 @@ describe('LiquidLong', async () => {
 		mockScheduler.cancelAll()
 	})
 
+	describe('getMaxLeverageSizeInEth', async () => {
+		it('should return a floating point number that is half of available weth', async () => {
+			mockProvider.setWethBalance(123.45)
+			await mockScheduler.moveTimeForward(10000)
+
+			const maxLeverage = await liquidLong.getMaxLeverageSizeInEth()
+
+			expect(maxLeverage).to.equal(61.725)
+		})
+	})
+
 	describe('getEthPrice', async () => {
 		it('should return floating point number representation', async () => {
 			mockProvider.setEthPriceInUsd(543.21)

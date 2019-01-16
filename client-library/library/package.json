@@ -1,6 +1,6 @@
 {
 	"name": "@keydonix/liquid-long-client-library",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "A client library for Liquid Long.",
 	"main": "output/index.js",
 	"types": "output/index.d.ts",
