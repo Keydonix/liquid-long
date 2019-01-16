@@ -28,7 +28,7 @@ describe('liquid long tests', async () => {
 	let oasis: Oasis<BigNumber>
 	let maker: Tub<BigNumber>
 	let dai: Sai<BigNumber>
-	let weth: Gem<BigNumber>
+	let weth: { owner: Gem<BigNumber>, user: Gem<BigNumber>, affiliate: Gem<BigNumber>}
 
 	before(async () => {
 		ethereumAddress = getEnv('ETHEREUM_HTTP', 'http://localhost:1235')
@@ -54,11 +54,18 @@ describe('liquid long tests', async () => {
 			user: new LiquidLong(new TimeoutScheduler(), provider, wallets.user, liquidLongAddress, 0, 0.01, 0),
 			affiliate: new LiquidLong(new TimeoutScheduler(), provider, wallets.affiliate, liquidLongAddress, 0, 0.01, 0),
 		}
-		const dependencies = new ContractDependenciesEthers(provider, provider.getSigner(0))
-		oasis = new Oasis(dependencies, oasisAddress)
-		maker = new Tub(dependencies, makerAddress)
-		dai = new Sai(dependencies, daiAddress)
-		weth = new Gem(dependencies, wethAddress)
+		const ownerDependencies = new ContractDependenciesEthers(provider, provider.getSigner(0))
+		const userDependencies = new ContractDependenciesEthers(provider, wallets.user)
+		const affiliateDependencies = new ContractDependenciesEthers(provider, wallets.affiliate)
+		// TODO: turn these into objects like weth
+		oasis = new Oasis(ownerDependencies, oasisAddress)
+		maker = new Tub(ownerDependencies, makerAddress)
+		dai = new Sai(ownerDependencies, daiAddress)
+		weth = {
+			owner: new Gem(ownerDependencies, wethAddress),
+			user: new Gem(userDependencies, wethAddress),
+			affiliate: new Gem(affiliateDependencies, wethAddress)
+		}
 
 		await liquidLong.owner.awaitReady
 		await liquidLong.user.awaitReady
@@ -110,21 +117,19 @@ describe('liquid long tests', async () => {
 			expect(cupId).to.be.greaterThan(0)
 		})
 
-		it('should send fee to owner', async () => {
+		it('should leave fee in the form of weth', async () => {
 			// arrange
 			const fee = await liquidLong.user.getFeeInEth(2, 1)
 			const cost = (await liquidLong.user.getEstimatedCostsInEth(2, 1)).low
-			await liquidLong.owner.adminWithdrawFees()
-			const startingOwnerAttoeth = await wallets.owner.getBalance()
+			const startingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
 
 			// act
 			await liquidLong.user.openPosition(2, 1, cost, fee)
-			await liquidLong.owner.adminWithdrawFees()
 
 			// assert
-			const endingOwnerAttoeth = await wallets.owner.getBalance()
+			const endingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
 			const feeInAttoeth = bigNumberify(fee * 1e9).mul(1e9)
-			const balanceChangeInAttoeth = endingOwnerAttoeth.sub(startingOwnerAttoeth)
+			const balanceChangeInAttoeth = endingLiquidLongAttoweth.sub(startingLiquidLongAttoweth)
 			expect(balanceChangeInAttoeth.toString()).to.equal(feeInAttoeth.toString())
 		})
 
@@ -132,42 +137,50 @@ describe('liquid long tests', async () => {
 			// arrange
 			const fee = await liquidLong.user.getFeeInEth(2, 1)
 			const cost = (await liquidLong.user.getEstimatedCostsInEth(2, 1)).low
-			const startingOwnerAttoeth = await wallets.owner.getBalance()
-			const startingAffiliateAttoeth = await wallets.affiliate.getBalance()
+			const startingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
+			const startingAffiliateAttoeth = await weth.affiliate.balanceOf_(wallets.affiliate.address)
 
 			// act
 			await liquidLong.user.openPosition(2, 1, cost, fee, wallets.affiliate.address)
-			await Promise.all([
-				liquidLong.owner.adminWithdrawFees(),
-				liquidLong.affiliate.adminWithdrawFees(),
-			])
 
 			// assert
-			const endingOwnerAttoeth = await wallets.owner.getBalance()
-			const endingAffiliateAttoeth = await wallets.affiliate.getBalance()
+			const endingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
+			const endingAffiliateAttoweth = await weth.affiliate.balanceOf_(wallets.affiliate.address)
 			const feeInAttoeth = bigNumberify(fee * 1e9).mul(1e9)
-			const ownerBalanceChangeInAttoeth = endingOwnerAttoeth.sub(startingOwnerAttoeth)
-			const affiliateBalanceChangeInAttoeth = endingAffiliateAttoeth.sub(startingAffiliateAttoeth)
-			expect(ownerBalanceChangeInAttoeth.toString()).to.equal(feeInAttoeth.div(2).toString())
-			expect(affiliateBalanceChangeInAttoeth.toString()).to.equal(feeInAttoeth.div(2).toString())
+			const liquidLongBalanceChangeInAttoweth = endingLiquidLongAttoweth.sub(startingLiquidLongAttoweth)
+			const affiliateBalanceChangeInAttoweth = endingAffiliateAttoweth.sub(startingAffiliateAttoeth)
+			expect(liquidLongBalanceChangeInAttoweth.toString()).to.equal(feeInAttoeth.div(2).toString())
+			expect(affiliateBalanceChangeInAttoweth.toString()).to.equal(feeInAttoeth.div(2).toString())
 		})
 	})
 
 	const fundAccount = async (account: 'user'|'affiliate', amount: number) => {
-		await (await wallets.funder.sendTransaction({ gasLimit: 21000, gasPrice: 0, to: wallets[account].address, value: QUINTILLION.mul(amount) })).wait()
+		const value = QUINTILLION.mul(amount)
+		if (value.isZero()) return
+		const transactionResponse = await wallets.funder.sendTransaction({ gasLimit: 21000, gasPrice: 0, to: wallets[account].address, value: value })
+		await transactionResponse.wait()
+	}
+
+	const sweepAccountEth = async (account: 'user'|'affiliate') => {
+		const balance = await wallets[account].getBalance()
+		if (balance.isZero()) return
+		const transactionResponse = await wallets[account].sendTransaction({ gasLimit: 21000, gasPrice: 0, to: wallets.funder.address, value: balance })
+		await transactionResponse.wait()
+	}
+
+	const withdrawAccountWethToEth = async (account: 'owner'|'user'|'affiliate') => {
+		const balance = await weth[account].balanceOf_(wallets[account].address)
+		if (balance.isZero()) return
+		await weth[account].withdraw(balance)
 	}
 
 	const sweep = async () => {
 		await clearOasisOrderbook()
-		const wethBalance = await weth.balanceOf_(liquidLongAddress)
+		const wethBalance = await weth.owner.balanceOf_(liquidLongAddress)
 		await liquidLong.owner.adminWithdrawWeth(wethBalance.div(1e9).toNumber() / 1e9)
-		await Promise.all([
-			liquidLong.owner.adminWithdrawFees(),
-			liquidLong.affiliate.adminWithdrawFees(),
-		])
-		await (await wallets.owner.sendTransaction({ gasLimit: 21000, gasPrice: 0, to: wallets.funder.address, value: await wallets.owner.getBalance() })).wait()
-		await (await wallets.user.sendTransaction({ gasLimit: 21000, gasPrice: 0, to: wallets.funder.address, value: await wallets.user.getBalance() })).wait()
-		await (await wallets.affiliate.sendTransaction({ gasLimit: 21000, gasPrice: 0, to: wallets.funder.address, value: await wallets.affiliate.getBalance() })).wait()
+		await withdrawAccountWethToEth('affiliate')
+		await sweepAccountEth('user')
+		await sweepAccountEth('affiliate')
 	}
 
 	const clearOasisOrderbook = async () => {

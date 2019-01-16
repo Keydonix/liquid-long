@@ -1,9 +1,4 @@
 import { ContractAccessor } from '../libraries/ContractAccessort'
-import { PrivateKey } from '../libraries/PrivateKey'
-import { OasisdexContract } from '../libraries/ContractInterfaces'
-import { getEnv } from '../libraries/Environment'
-import { JsonRpcProvider } from 'ethers/providers'
-import { Wallet } from 'ethers/wallet'
 import { BigNumber, bigNumberify } from 'ethers/utils'
 import { Oasis } from '@keydonix/maker-contract-interfaces';
 
@@ -40,7 +35,6 @@ async function doStuff() {
 	console.log('Sweeping Liquid Long ...')
 	const wethBalance = await contracts.weth.balanceOf_(contracts.liquidLong.address)
 	await contracts.liquidLong.wethWithdraw(wethBalance)
-	await contracts.liquidLong.withdrawPayments()
 
 	console.log('Clearing Oasis orderbook...')
 	await clearOasisOrderbook(contracts.oasis, await contracts.liquidLong.weth_(), await contracts.liquidLong.dai_())
