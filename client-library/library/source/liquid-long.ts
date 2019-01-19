@@ -127,10 +127,6 @@ export class LiquidLong {
 		await this.contract.wethWithdraw(ethers.utils.bigNumberify(Math.round(amount * 1e9)).mul(1e9))
 	}
 
-	public adminWithdrawFees = async (): Promise<void> => {
-		await this.contract.withdrawPayments()
-	}
-
 	public adminTransferOwnership = async (newOwner: string): Promise<void> => {
 		await this.contract.transferOwnership(newOwner)
 	}
