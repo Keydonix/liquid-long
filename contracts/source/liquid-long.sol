@@ -433,6 +433,10 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		owner.transfer(_amount);
 	}
 
+	function attowethBalance() public view returns (uint256 _attoweth) {
+		return weth.balanceOf(address(this));
+	}
+
 	function ethWithdraw() public onlyOwner {
 		uint256 _amount = address(this).balance;
 		owner.transfer(_amount);

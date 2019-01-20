@@ -8,6 +8,7 @@ import { ethers } from 'ethers'
 
 export class LiquidLong {
 	private readonly contract: LiquidLongContract<ethers.utils.BigNumber>
+	private readonly maxLeverageSizeInEth: PolledValue<number>
 	private readonly ethPriceInUsd: PolledValue<number>
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
@@ -31,6 +32,7 @@ export class LiquidLong {
 	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
 		const contractDependencies = new ContractDependenciesEthers(provider, signer, async () => defaultGasPriceInNanoeth)
 		this.contract = new LiquidLongContract(contractDependencies, liquidLongAddress)
+		this.maxLeverageSizeInEth = new PolledValue(scheduler, this.fetchMaxLeverageSizeInEth, ethPricePollingFrequency, 0)
 		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency, defaultEthPriceInUsd)
 		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency, defaultProviderFeeRate)
 		this.awaitReady = Promise.all([this.ethPriceInUsd.latest, this.providerFeeRate.latest]).then(() => {})
@@ -43,8 +45,16 @@ export class LiquidLong {
 		])
 	}
 
+	public registerForMaxLeverageSizeUpdate = (listener: (newMaxLeverageSize: number) => void): void => {
+		this.maxLeverageSizeInEth.registerListener(listener)
+	}
+
 	public registerForEthPriceUpdated = (listener: (newEthPriceInUsd: number) => void): void => {
 		this.ethPriceInUsd.registerListener(listener)
+	}
+
+	public getMaxLeverageSizeInEth = async (): Promise<number> => {
+		return await this.maxLeverageSizeInEth.cached
 	}
 
 	public getEthPriceInUsd = async (): Promise<number> => {
@@ -133,6 +143,11 @@ export class LiquidLong {
 
 	public adminAcceptOwnership = async (): Promise<void> => {
 		await this.contract.claimOwnership()
+	}
+
+	private fetchMaxLeverageSizeInEth = async (): Promise<number> => {
+		const attoweth = await this.contract.attowethBalance_()
+		return attoweth.div(2).div(1e9).toNumber() / 1e9
 	}
 
 	private fetchEthPriceInUsd = async (): Promise<number> => {

@@ -4,7 +4,7 @@ import 'mocha'
 import { expect } from 'chai'
 import { LiquidLong } from '@keydonix/liquid-long-client-library'
 import { TimeoutScheduler } from '@keydonix/liquid-long-client-library/output/scheduler';
-import { Oasis, Sai, Gem, Tub } from '@keydonix/maker-contract-interfaces'
+import { Oasis, Sai, Gem, Tub, Pip } from '@keydonix/maker-contract-interfaces'
 import { ContractDependenciesEthers } from './maker-contract-dependencies'
 import { getEnv } from './environment'
 import { JsonRpcProvider } from 'ethers/providers'
@@ -27,6 +27,7 @@ describe('liquid long tests', async () => {
 	let liquidLong: { owner: LiquidLong, user: LiquidLong, affiliate: LiquidLong }
 	let oasis: Oasis<BigNumber>
 	let maker: Tub<BigNumber>
+	let medianizer: Pip<BigNumber>
 	let dai: Sai<BigNumber>
 	let weth: { owner: Gem<BigNumber>, user: Gem<BigNumber>, affiliate: Gem<BigNumber>}
 
@@ -60,6 +61,7 @@ describe('liquid long tests', async () => {
 		// TODO: turn these into objects like weth
 		oasis = new Oasis(ownerDependencies, oasisAddress)
 		maker = new Tub(ownerDependencies, makerAddress)
+		medianizer = new Pip(ownerDependencies, await maker.pip_())
 		dai = new Sai(ownerDependencies, daiAddress)
 		weth = {
 			owner: new Gem(ownerDependencies, wethAddress),
@@ -94,6 +96,26 @@ describe('liquid long tests', async () => {
 			const price = await liquidLong.owner.getEthPriceInUsd()
 
 			expect(price).to.equal(600)
+		})
+
+		// TODO: build the infrastructure for having some integration tests run using a MockScheduler instead of TimerScheduler like unit tests do
+		it.skip('should publish update to price feed when polled', async () => {
+			const newPrice = '0x' + ('0000000000000000000000000000000000000000000000000000000000000000' + bigNumberify(10).pow(18).mul(531).toHexString().substring(2)).slice(-64)
+			medianizer.poke(newPrice)
+			await delay(15000)
+
+			const price = await liquidLong.owner.getEthPriceInUsd()
+
+			expect(price).to.equal(531)
+		})
+	})
+
+	describe('getMaxLeverageSizeInEth', async () => {
+		it.skip('should return default price of 0', async () => {
+			// FIXME: this is racey with the polling time being so fast, result will either be 0 or 50 depending on timing
+			const maxLeverage = await liquidLong.owner.getMaxLeverageSizeInEth()
+
+			expect(maxLeverage).to.equal(0)
 		})
 	})
 

@@ -6,10 +6,15 @@ export const QUINTILLION = ethers.utils.bigNumberify(1e9).mul(1e9)
 
 export class MockProvider implements Provider {
 	public accounts: Array<string> = []
+	public attowethBalance: ethers.utils.BigNumber = ethers.utils.bigNumberify(QUINTILLION).mul(Math.round(Math.random() * 100 + 1))
 	public ethPriceInAttousd: ethers.utils.BigNumber = ethers.utils.bigNumberify(QUINTILLION).mul(Math.round(Math.random() * 100 + 1))
 	public providerFeePerEth: ethers.utils.BigNumber = ethers.utils.bigNumberify(QUINTILLION).mul(Math.round(Math.random() * 100 + 1))
 	public attodaiPaidCost: ethers.utils.BigNumber = ethers.utils.bigNumberify(QUINTILLION).mul(Math.round(Math.random() * 100 + 1))
 	public attoethBoughtCost: ethers.utils.BigNumber = ethers.utils.bigNumberify(QUINTILLION).mul(Math.round(Math.random() * 100 + 1))
+
+	setWethBalance(value: number) {
+		this.attowethBalance = ethers.utils.bigNumberify(Math.round(value * 1e9)).mul(1e9)
+	}
 
 	setEthPriceInUsd(value: number) {
 		this.ethPriceInAttousd = ethers.utils.bigNumberify(Math.round(value * 1e9)).mul(1e9)
@@ -31,7 +36,9 @@ export class MockProvider implements Provider {
 		return this.accounts
 	}
 	async call(transaction: ethers.providers.TransactionRequest): Promise<string> {
-		// getEthPrice()
+		// attowethBalance()
+		if (transaction.data === '0x997a12fa') return ethers.utils.defaultAbiCoder.encode(['uint256'], [this.attowethBalance])
+		// ethPriceInUsd()
 		if (transaction.data === '0x683e0bcd') return ethers.utils.defaultAbiCoder.encode(['uint256'], [this.ethPriceInAttousd])
 		// providerFeePerEth()
 		if (transaction.data === '0xfa72c53e') return ethers.utils.defaultAbiCoder.encode(['uint256'], [this.providerFeePerEth])
