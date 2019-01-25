@@ -1,1 +1,1 @@
-export { LiquidLong } from './liquid-long'
+export { LiquidLong } from './liquid-long.js'

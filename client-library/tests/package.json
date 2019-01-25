@@ -1,15 +1,12 @@
 {
 	"private": true,
 	"scripts": {
-		"build-dependency": "cd ../library && npm install && tsc",
-		"unlink-dependency": "npm unlink ../library",
-		"link-dependency": "npm link ../library",
-		"preinstall": "npm run unlink-dependency",
-		"postinstall": "npm run build-dependency && npm run link-dependency",
+		"build-dependency": "cd ../library && npm install && npm run build",
 		"test-no-build": "mocha --require ts-node/register --colors source/**/*.ts",
 		"test": "npm run build-dependency && npm run test-no-build"
 	},
 	"dependencies": {
+		"@keydonix/liquid-long-client-library": "file:../library",
 		"@types/chai": "4.1.4",
 		"@types/chai-as-promised": "7.1.0",
 		"@types/mocha": "5.2.3",

@@ -1,8 +1,8 @@
-import { LiquidLong as LiquidLongContract } from './generated/liquid-long'
-import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl'
-import { Scheduler, TimeoutScheduler } from './scheduler'
-import { PolledValue } from './polled-value'
-import { parseHexInt } from './utils'
+import { LiquidLong as LiquidLongContract } from './generated/liquid-long.js'
+import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl.js'
+import { Scheduler, TimeoutScheduler } from './scheduler.js'
+import { PolledValue } from './polled-value.js'
+import { parseHexInt } from './utils.js'
 import { ethers } from 'ethers'
 
 

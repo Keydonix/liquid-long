@@ -34,7 +34,7 @@ or
 ```
 cd client-library/library
 npm install
-npx tsc
+npm run build
 ```
 
 ## Testing and Using with a UI

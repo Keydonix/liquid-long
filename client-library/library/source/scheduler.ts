@@ -9,18 +9,23 @@ export abstract class Scheduler {
 	abstract cancelAll: () => void
 }
 
-export class TimeoutScheduler extends Scheduler {
-	private readonly scheduledTaskIds = new Set<NodeJS.Timer>()
-	private stopped = false
+// these declarations have slightly different signatures in Browser and Node, so we declare a version here that is a union of both and hope for the best
+declare namespace NodeJS { export interface Timer { ref(): void; unref(): void; } }
+type Timerish = number | NodeJS.Timer
+declare function setTimeout(handler: Function, timeout?: number, ...arguments: any[]): Timerish;
+declare function clearTimeout(handle?: Timerish): void;
 
-	public schedule = (milliseconds: number, scheduledTask: () => void): NodeJS.Timer => {
-		let scheduledTaskId: NodeJS.Timer
+export class TimeoutScheduler extends Scheduler {
+	private readonly scheduledTaskIds = new Set<Timerish>()
+
+	public schedule = (milliseconds: number, scheduledTask: () => void): Timerish => {
+		let scheduledTaskId: Timerish
 		scheduledTaskId = setTimeout(() => { this.scheduledTaskIds.delete(scheduledTaskId); scheduledTask() }, milliseconds)
 		this.scheduledTaskIds.add(scheduledTaskId)
 		return scheduledTaskId
 	}
 
-	public cancel = (scheduledTaskId: NodeJS.Timer): void => {
+	public cancel = (scheduledTaskId: Timerish): void => {
 		clearTimeout(scheduledTaskId)
 		this.scheduledTaskIds.delete(scheduledTaskId)
 	}
