@@ -1,9 +1,9 @@
 {
 	"name": "@keydonix/liquid-long-client-library",
-	"version": "2.1.0",
+	"version": "3.0.0",
 	"description": "A client library for Liquid Long.",
-	"main": "output/index.js",
-	"types": "output/index.d.ts",
+	"main": "output-node/index.js",
+	"browser": "output-es/index.js",
 	"sideEffects": false,
 	"repository": {
 		"type": "git",
@@ -16,12 +16,14 @@
 	},
 	"homepage": "https://github.com/Keydonix/liquid-long#readme",
 	"scripts": {
-		"test": "cd ../tests && npm install && npm run test",
+		"clean": "recursive-delete \"output-es\" && recursive-delete \"output-node\"",
+		"build": "npx tsc --project tsconfig-es.json && npx tsc --project tsconfig-node.json",
+		"test": "npm run build && npm run test-no-build",
 		"test-no-build": "cd ../tests && npm run test-no-build",
-		"prepublishOnly": "npm run test"
+		"prepublishOnly": "npm run clean && npm run test"
 	},
 	"devDependencies": {
-		"@types/node": "10.5.8",
+		"recursive-fs": "1.1.0",
 		"typescript": "3.1.6"
 	},
 	"dependencies": {

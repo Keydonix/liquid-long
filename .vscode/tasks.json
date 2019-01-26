@@ -4,12 +4,11 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"identifier": "build client library",
-			"type": "typescript",
-			"tsconfig": "client-library\\library\\tsconfig.json",
-			"problemMatcher": [
-				"$tsc"
-			]
+			"label": "build-client-library",
+			"type": "npm",
+			"script": "build",
+			"path": "client-library/library/",
+			"problemMatcher": []
 		}
 	]
 }

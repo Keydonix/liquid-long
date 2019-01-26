@@ -1,4 +1,4 @@
-import { Scheduler } from './scheduler'
+import { Scheduler } from './scheduler.js'
 
 export class PolledValue<TValue> {
 	private readonly scheduler: Scheduler

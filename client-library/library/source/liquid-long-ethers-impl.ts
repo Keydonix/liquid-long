@@ -1,4 +1,4 @@
-import { Dependencies, AbiFunction, AbiParameter, Transaction, TransactionReceipt } from './generated/liquid-long'
+import { Dependencies, AbiFunction, AbiParameter, Transaction, TransactionReceipt } from './generated/liquid-long.js'
 import { ethers } from 'ethers'
 
 

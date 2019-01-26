@@ -3,7 +3,7 @@ require('source-map-support').install()
 import 'mocha'
 import { expect } from 'chai'
 import { LiquidLong } from '@keydonix/liquid-long-client-library'
-import { TimeoutScheduler } from '@keydonix/liquid-long-client-library/output/scheduler';
+import { TimeoutScheduler } from '@keydonix/liquid-long-client-library/output-node/scheduler';
 import { Oasis, Sai, Gem, Tub, Pip } from '@keydonix/maker-contract-interfaces'
 import { ContractDependenciesEthers } from './maker-contract-dependencies'
 import { getEnv } from './environment'
