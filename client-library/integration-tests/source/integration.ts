@@ -51,9 +51,9 @@ describe('liquid long tests', async () => {
 			affiliate: Wallet.fromMnemonic('fantasy fringe prosper bench jaguar sound corn course stick blade luggage wonder').connect(provider),
 		}
 		liquidLong = {
-			owner: LiquidLong.createJsonRpc(ethereumAddress, liquidLongAddress, 0, 0.01, 0, 10),
-			user: new LiquidLong(new TimeoutScheduler(), provider, wallets.user, liquidLongAddress, 0, 0.01, 0),
-			affiliate: new LiquidLong(new TimeoutScheduler(), provider, wallets.affiliate, liquidLongAddress, 0, 0.01, 0),
+			owner: LiquidLong.createJsonRpc(ethereumAddress, liquidLongAddress, 0, 10),
+			user: new LiquidLong(new TimeoutScheduler(), provider, wallets.user, liquidLongAddress, 0),
+			affiliate: new LiquidLong(new TimeoutScheduler(), provider, wallets.affiliate, liquidLongAddress, 0),
 		}
 		const ownerDependencies = new ContractDependenciesEthers(provider, provider.getSigner(0))
 		const userDependencies = new ContractDependenciesEthers(provider, wallets.user)

@@ -13,28 +13,28 @@ export class LiquidLong {
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
 
-	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLongAddress: string, defaultGasPriceInNanoeth: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
 		const provider = new ethers.providers.Web3Provider(web3Provider)
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = web3PollingInterval
-		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
+		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
 	}
 
-	static createJsonRpc(jsonRpcAddress: string, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createJsonRpc(jsonRpcAddress: string, liquidLongAddress: string, defaultGasPriceInNanoeth: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
 		const provider = new ethers.providers.JsonRpcProvider(jsonRpcAddress);
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = jsonRpcPollingInterval
-		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultEthPriceInUsd, defaultProviderFeeRate, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
+		return new LiquidLong(scheduler, provider, signer, liquidLongAddress, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
 	}
 
-	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultEthPriceInUsd: number, defaultProviderFeeRate: number, defaultGasPriceInNanoeth: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
+	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLongAddress: string, defaultGasPriceInNanoeth: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
 		const contractDependencies = new ContractDependenciesEthers(provider, signer, async () => defaultGasPriceInNanoeth)
 		this.contract = new LiquidLongContract(contractDependencies, liquidLongAddress)
-		this.maxLeverageSizeInEth = new PolledValue(scheduler, this.fetchMaxLeverageSizeInEth, ethPricePollingFrequency, 0)
-		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency, defaultEthPriceInUsd)
-		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency, defaultProviderFeeRate)
+		this.maxLeverageSizeInEth = new PolledValue(scheduler, this.fetchMaxLeverageSizeInEth, ethPricePollingFrequency)
+		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency)
+		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency)
 		this.awaitReady = Promise.all([this.ethPriceInUsd.latest, this.providerFeeRate.latest]).then(() => {})
 	}
 
@@ -103,7 +103,7 @@ export class LiquidLong {
 	}
 
 	public getEstimatedCostsInEth = async (leverageMultiplier: number, leverageSizeInEth: number): Promise<{low: number, high: number}> => {
-		const daiPerEth = this.ethPriceInUsd.cached
+		const daiPerEth = await this.ethPriceInUsd.cached
 		const loanSizeInEth = this.getLoanSizeInEth(leverageMultiplier, leverageSizeInEth)
 		const daiToSell = loanSizeInEth * daiPerEth
 		const attodaiToSell = ethers.utils.bigNumberify(Math.floor(daiToSell * 1e9)).mul(1e9)

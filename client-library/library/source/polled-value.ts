@@ -1,27 +1,24 @@
 import { Scheduler } from './scheduler.js'
 
 export class PolledValue<TValue> {
-	private readonly scheduler: Scheduler
-	private readonly fetcher: () => Promise<TValue>
-	private readonly frequencyInMilliseconds: number
-
-	private lastKnownGood: TValue
+	private lastKnownGood: TValue | undefined
 	private outstandingFetch: Promise<TValue> | null
-	private readonly listeners: Array<(newValue: TValue, oldValue: TValue) => void> = []
+	private readonly listeners: Array<(newValue: TValue, oldValue: TValue | undefined) => void> = []
 	private scheduledTaskId: any | null = null
 
-	public constructor(scheduler: Scheduler, fetcher: () => Promise<TValue>, frequencyInMilliseconds: number, defaultValue: TValue) {
-		this.scheduler = scheduler
-		this.fetcher = fetcher
-		this.frequencyInMilliseconds = frequencyInMilliseconds
-		this.lastKnownGood = defaultValue
+	public constructor(
+		private readonly scheduler: Scheduler,
+		private readonly fetcher: () => Promise<TValue>,
+		private readonly frequencyInMilliseconds: number
+	) {
+		this.lastKnownGood = undefined
 		this.outstandingFetch = this.fetch()
 	}
 
-	public get cached(): TValue { return this.lastKnownGood }
+	public get cached(): Promise<TValue> { return this.lastKnownGood ? Promise.resolve(this.lastKnownGood) : this.latest }
 	public get latest(): Promise<TValue> { return this.outstandingFetch || this.fetch() }
 
-	public registerListener = (listener: (newValue: TValue, oldValue: TValue) => void): void => {
+	public registerListener = (listener: (newValue: TValue, oldValue: TValue | undefined) => void): void => {
 		this.listeners.push(listener)
 	}
 
@@ -36,9 +33,10 @@ export class PolledValue<TValue> {
 			if (this.scheduledTaskId !== null) this.scheduler.cancel(this.scheduledTaskId)
 			const previousValue = this.lastKnownGood
 			this.outstandingFetch = this.fetcher()
-			this.lastKnownGood = await this.outstandingFetch
+			const newValue = await this.outstandingFetch
+			this.lastKnownGood = newValue
 			this.outstandingFetch = null
-			this.listeners.forEach(listener => listener(this.lastKnownGood, previousValue))
+			this.listeners.forEach(listener => listener(newValue, previousValue))
 			return this.lastKnownGood
 		} finally {
 			this.scheduledTaskId = this.scheduler.schedule(this.frequencyInMilliseconds, this.fetch)
