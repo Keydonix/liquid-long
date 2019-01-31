@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.4.24;
 pragma experimental ABIEncoderV2;
 pragma experimental "v0.5.0";
 
@@ -495,8 +495,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
 			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_buyRemaining <= _buyAvailableInOffer) {
-				// TODO: safe math after verifying this logic is correct
-				uint256 _payRemaining = (_buyRemaining * _payAvailableInOffer / _buyAvailableInOffer);
+				// TODO: verify this logic is correct
+				uint256 _payRemaining = _buyRemaining.mul(_payAvailableInOffer).div(_buyAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
@@ -569,27 +569,27 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
-	function getCdps(address _ownerOfProxy, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
+	function getCdps(address _owner, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
 		// resolve a owner to a proxy, then query by that proxy
-		DSProxy _cdpProxy = proxyRegistry.proxies(_ownerOfProxy);
+		DSProxy _cdpProxy = proxyRegistry.proxies(_owner);
 		require(_cdpProxy != address(0));
-		return getCdpsByOwner(_cdpProxy, _offset, _pageSize);
+		return getCdpsByAddresses(_owner, _cdpProxy, _offset, _pageSize);
 	}
 
 	// Retrieve CDPs by TRUE owner, as registered in MAker
-	function getCdpsByOwner(address _ownerOfCdp, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
+	function getCdpsByAddresses(address _owner, address _cdpProxy, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
 		uint256 _cdpCount = cdpCount();
 		uint256 _matchCount = 0;
 		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
 			address _cdpOwner = maker.lad(bytes32(_i));
-			if (_cdpOwner != _ownerOfCdp) continue;
+			if (_cdpOwner != _owner && _cdpOwner != _cdpProxy) continue;
 			++_matchCount;
 		}
 		_cdps = new CDP[](_matchCount);
 		_matchCount = 0;
 		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
 			(address _cdpOwner, uint256 _collateral,,) = maker.cups(bytes32(_i));
-			if (_cdpOwner != _ownerOfCdp) continue;
+			if (_cdpOwner != _owner && _cdpOwner != _cdpProxy) continue;
 			// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
 			uint256 _debtInAttodai = maker.tab(bytes32(_i));
 			// Adjust locked attoeth to factor in peth/weth ratio
@@ -602,11 +602,11 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 				id: _i,
 				debtInAttodai: _debtInAttodai,
 				lockedAttoeth: _lockedAttoeth,
-				feeInAttoeth: _liquidationCostInAttoeth / 100,
+				feeInAttoeth: _liquidationCostInAttoeth.div(100),
 				liquidationCostInAttoeth: _liquidationCostInAttoeth,
 				liquidatableDebtInAttodai: _liquidatableDebtInAttodai,
 				liquidationCostAtFeedPriceInAttoeth: _liquidationCostAtFeedPriceInAttoeth,
-				userOwned: true
+				userOwned: _cdpOwner == _owner
 				});
 			++_matchCount;
 		}
