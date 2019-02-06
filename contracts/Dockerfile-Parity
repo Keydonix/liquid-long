@@ -24,7 +24,7 @@ COPY deployment/ /app/deployment/
 COPY source/ /app/source/
 WORKDIR /app
 
-RUN /home/parity/bin/parity --config /home/parity/config.toml & \
+RUN /bin/parity --config /home/parity/config.toml & \
 	npx ts-node --project deployment/tsconfig.json deployment/scripts/deploy.ts \
 	&& kill -TERM $(pidof parity)
 
