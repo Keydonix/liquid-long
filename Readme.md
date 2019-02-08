@@ -2,7 +2,7 @@
 ```
 cd contracts
 npm install
-npx ts-node --project ./deployment/tsconfig.json ./deployment/scripts/compile.ts
+npm run build
 ```
 
 ## Deploying the Contracts
