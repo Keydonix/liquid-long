@@ -9,7 +9,7 @@
 		"noImplicitThis": true,
 		"noImplicitReturns": true,
 		"declaration": true,
-		"lib": [ "es6" ],
+		"lib": [ "es2017" ],
 	},
 	"include": [
 		"**/*.ts",

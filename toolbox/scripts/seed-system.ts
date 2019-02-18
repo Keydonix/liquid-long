@@ -1,10 +1,10 @@
-import { ContractAccessor } from '../libraries/ContractAccessort'
+import { ContractAccessor } from '../libraries/ContractAccessor'
 import { BigNumber, bigNumberify } from 'ethers/utils'
-import { Oasis } from '@keydonix/maker-contract-interfaces';
+import { Oasis, Address } from '@keydonix/maker-contract-interfaces';
 
 // TODO: read off Maker from env
-const DAI_ADDRESS = "0x8c915bd2c0df8ba79a7d28538500a97bd15ea985"
-const WETH_ADDRESS = "0xfcaf25bf38e7c86612a25ff18cb8e09ab07c9885"
+const DAI_ADDRESS = Address.fromHexString("0x8c915bd2c0df8ba79a7d28538500a97bd15ea985")
+const WETH_ADDRESS = Address.fromHexString("0xfcaf25bf38e7c86612a25ff18cb8e09ab07c9885")
 
 const ZERO = bigNumberify(0)
 const ETHER = bigNumberify(10).pow(bigNumberify(18))
@@ -40,7 +40,7 @@ async function doStuff() {
 	await clearOasisOrderbook(contracts.oasis, await contracts.liquidLong.weth_(), await contracts.liquidLong.dai_())
 
 	console.log('Adding ETH to Liquid Long...')
-	await contracts.liquidLong.wethDeposit({ attachedEth: ETHER.mul(100) })
+	await contracts.liquidLong.wethDeposit(ETHER.mul(100))
 
 	// TODO: check approvals/approve
 	console.log("Creating Oasis orders...")
@@ -48,7 +48,7 @@ async function doStuff() {
 	await placeMultipleEqualOrders(contracts.oasis, OrderType.BID, bigNumberify(575), bigNumberify(595), bigNumberify(20).mul(ETHER), 4)
 }
 
-const clearOasisOrderbook = async (oasis: Oasis<BigNumber>, wethAddress: string, daiAddress: string) => {
+const clearOasisOrderbook = async (oasis: Oasis<BigNumber>, wethAddress: Address, daiAddress: Address) => {
 	while (true) {
 		const bestOfferId = await oasis.getBestOffer_(wethAddress, daiAddress)
 		if (bestOfferId.isZero()) break

@@ -395,10 +395,6 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 id;
 		uint256 debtInAttodai;
 		uint256 lockedAttoeth;
-		uint256 feeInAttoeth;
-		uint256 liquidationCostInAttoeth;
-		uint256 liquidatableDebtInAttodai;
-		uint256 liquidationCostAtFeedPriceInAttoeth;
 		bool userOwned;
 	}
 
@@ -569,7 +565,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
-	function getCdps(address _owner, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
+	function getCdps(address _owner, uint32 _offset, uint32 _pageSize) public returns (CDP[] _cdps) {
 		// resolve a owner to a proxy, then query by that proxy
 		DSProxy _cdpProxy = proxyRegistry.proxies(_owner);
 		require(_cdpProxy != address(0));
@@ -577,43 +573,48 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// Retrieve CDPs by TRUE owner, as registered in MAker
-	function getCdpsByAddresses(address _owner, address _cdpProxy, uint256 _offset, uint256 _pageSize) public returns (CDP[] _cdps) {
+	function getCdpsByAddresses(address _owner, address _proxy, uint32 _offset, uint32 _pageSize) public returns (CDP[] _cdps) {
+		_cdps = new CDP[](getCdpCountByOwnerAndProxy(_owner, _proxy, _offset, _pageSize));
 		uint256 _cdpCount = cdpCount();
-		uint256 _matchCount = 0;
-		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
+		uint32 _matchCount = 0;
+		for (uint32 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
 			address _cdpOwner = maker.lad(bytes32(_i));
-			if (_cdpOwner != _owner && _cdpOwner != _cdpProxy) continue;
-			++_matchCount;
-		}
-		_cdps = new CDP[](_matchCount);
-		_matchCount = 0;
-		for (uint256 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
-			(address _cdpOwner, uint256 _collateral,,) = maker.cups(bytes32(_i));
-			if (_cdpOwner != _owner && _cdpOwner != _cdpProxy) continue;
-			// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
-			uint256 _debtInAttodai = maker.tab(bytes32(_i));
-			// Adjust locked attoeth to factor in peth/weth ratio
-			uint256 _lockedAttoeth = (_collateral + 1).mul27(maker.gap().mul18(maker.per()));
-			// We use two values in case order book can not satisfy closing CDP
-			// Can be closed if _liqudationDebtInAttodai == _debtInAttodai
-			(uint256 _liquidationCostInAttoeth, uint256 _liquidatableDebtInAttodai) = estimateDaiPurchaseCosts(_debtInAttodai);
-			uint256 _liquidationCostAtFeedPriceInAttoeth = _debtInAttodai.div18(ethPriceInUsd());
-			_cdps[_matchCount] = CDP({
-				id: _i,
-				debtInAttodai: _debtInAttodai,
-				lockedAttoeth: _lockedAttoeth,
-				feeInAttoeth: _liquidationCostInAttoeth.div(100),
-				liquidationCostInAttoeth: _liquidationCostInAttoeth,
-				liquidatableDebtInAttodai: _liquidatableDebtInAttodai,
-				liquidationCostAtFeedPriceInAttoeth: _liquidationCostAtFeedPriceInAttoeth,
-				userOwned: _cdpOwner == _owner
-				});
+			if (_cdpOwner != _owner && _cdpOwner != _proxy) continue;
+			_cdps[_matchCount] = getCdpDetailsById(_i, _owner);
 			++_matchCount;
 		}
 		return _cdps;
 	}
 
-	function cdpCount() public view returns (uint256 _cdpCount) {
-		return maker.cupi();
+	function cdpCount() public view returns (uint32 _cdpCount) {
+		uint256 count = maker.cupi();
+		require(count < 2**32);
+		return uint32(count);
+	}
+
+	function getCdpCountByOwnerAndProxy(address _owner, address _proxy, uint32 _offset, uint32 _pageSize) private view returns (uint32 _count) {
+		uint256 _cdpCount = cdpCount();
+		_count = 0;
+		for (uint32 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
+			address _cdpOwner = maker.lad(bytes32(_i));
+			if (_cdpOwner != _owner && _cdpOwner != _proxy) continue;
+			++_count;
+		}
+		return _count;
+	}
+
+	function getCdpDetailsById(uint32 _cdpId, address _owner) private returns (CDP _cdp) {
+		(address _cdpOwner, uint256 _collateral,,) = maker.cups(bytes32(_cdpId));
+		// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
+		uint256 _debtInAttodai = maker.tab(bytes32(_cdpId));
+		// Adjust locked attoeth to factor in peth/weth ratio
+		uint256 _lockedAttoeth = (_collateral + 1).mul27(maker.gap().mul18(maker.per()));
+		_cdp = CDP({
+			id: _cdpId,
+			debtInAttodai: _debtInAttodai,
+			lockedAttoeth: _lockedAttoeth,
+			userOwned: _cdpOwner == _owner
+		});
+		return _cdp;
 	}
 }
