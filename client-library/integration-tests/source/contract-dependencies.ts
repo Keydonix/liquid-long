@@ -1,4 +1,4 @@
-import { Dependencies, Transaction, TransactionReceipt, Bytes32, Bytes } from './generated/liquid-long.js'
+import { Dependencies, Transaction, TransactionReceipt, Bytes32, Bytes } from '@keydonix/maker-contract-interfaces'
 import { ethers } from 'ethers'
 
 

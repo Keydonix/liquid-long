@@ -2,10 +2,10 @@ require('source-map-support').install()
 
 import 'mocha'
 import { expect } from 'chai'
-import { LiquidLong } from '@keydonix/liquid-long-client-library'
+import { LiquidLong, Address } from '@keydonix/liquid-long-client-library'
 import { TimeoutScheduler } from '@keydonix/liquid-long-client-library/output-node/scheduler';
-import { Oasis, Sai, Gem, Tub, Pip } from '@keydonix/maker-contract-interfaces'
-import { ContractDependenciesEthers } from './maker-contract-dependencies'
+import { Oasis, Sai, Gem, Tub, Pip, Bytes32 } from '@keydonix/maker-contract-interfaces'
+import { ContractDependenciesEthers } from './contract-dependencies'
 import { getEnv } from './environment'
 import { JsonRpcProvider } from 'ethers/providers'
 import { Wallet } from 'ethers'
@@ -16,11 +16,11 @@ const QUINTILLION = bigNumberify(10).pow(18)
 describe('liquid long tests', async () => {
 	let ethereumAddress: string
 	let privateKey: string
-	let liquidLongAddress: string
-	let oasisAddress: string
-	let makerAddress: string
-	let wethAddress: string
-	let daiAddress: string
+	let liquidLongAddress: Address
+	let oasisAddress: Address
+	let makerAddress: Address
+	let wethAddress: Address
+	let daiAddress: Address
 
 	let provider: JsonRpcProvider
 	let wallets: { funder: Wallet, owner: Wallet, user: Wallet, affiliate: Wallet }
@@ -34,11 +34,11 @@ describe('liquid long tests', async () => {
 	before(async () => {
 		ethereumAddress = getEnv('ETHEREUM_HTTP', 'http://localhost:1235')
 		privateKey = getEnv('ETHEREUM_PRIVATE_KEY', 'fae42052f82bed612a724fec3632f325f377120592c75bb78adfcceae6470c5a')
-		liquidLongAddress = getEnv('ETHEREUM_LIQUID_LONG_ADDRESS', '0xB03CF72BC5A9A344AAC43534D664917927367487')
-		oasisAddress = getEnv('ETHEREUM_OASIS_ADDRESS', '0x3c6721551c2ba3973560aef3e11d34ce05db4047')
-		wethAddress = getEnv('ETHEREUM_WETH_ADRESS', '0xfcaf25bf38e7c86612a25ff18cb8e09ab07c9885')
-		makerAddress = getEnv('ETHEREUM_TUB_ADRESS', '0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6')
-		daiAddress = getEnv('ETHEREUM_DAI_ADDRESS', '0x8c915bd2c0df8ba79a7d28538500a97bd15ea985')
+		liquidLongAddress = Address.fromHexString(getEnv('ETHEREUM_LIQUID_LONG_ADDRESS', '0xB03CF72BC5A9A344AAC43534D664917927367487'))
+		oasisAddress = Address.fromHexString(getEnv('ETHEREUM_OASIS_ADDRESS', '0x3c6721551c2ba3973560aef3e11d34ce05db4047'))
+		wethAddress = Address.fromHexString(getEnv('ETHEREUM_WETH_ADRESS', '0xfcaf25bf38e7c86612a25ff18cb8e09ab07c9885'))
+		makerAddress = Address.fromHexString(getEnv('ETHEREUM_TUB_ADRESS', '0x93943fb2d02ce1101dadc3ab1bc3cab723fd19d6'))
+		daiAddress = Address.fromHexString(getEnv('ETHEREUM_DAI_ADDRESS', '0x8c915bd2c0df8ba79a7d28538500a97bd15ea985'))
 
 		await spinUntilNodeIsReady(ethereumAddress, liquidLongAddress)
 
@@ -55,9 +55,9 @@ describe('liquid long tests', async () => {
 			user: new LiquidLong(new TimeoutScheduler(), provider, wallets.user, liquidLongAddress, 0),
 			affiliate: new LiquidLong(new TimeoutScheduler(), provider, wallets.affiliate, liquidLongAddress, 0),
 		}
-		const ownerDependencies = new ContractDependenciesEthers(provider, provider.getSigner(0))
-		const userDependencies = new ContractDependenciesEthers(provider, wallets.user)
-		const affiliateDependencies = new ContractDependenciesEthers(provider, wallets.affiliate)
+		const ownerDependencies = new ContractDependenciesEthers(provider, provider.getSigner(0), async () => 1)
+		const userDependencies = new ContractDependenciesEthers(provider, wallets.user, async () => 1)
+		const affiliateDependencies = new ContractDependenciesEthers(provider, wallets.affiliate, async () => 1)
 		// TODO: turn these into objects like weth
 		oasis = new Oasis(ownerDependencies, oasisAddress)
 		maker = new Tub(ownerDependencies, makerAddress)
@@ -100,7 +100,7 @@ describe('liquid long tests', async () => {
 
 		// TODO: build the infrastructure for having some integration tests run using a MockScheduler instead of TimerScheduler like unit tests do
 		it.skip('should publish update to price feed when polled', async () => {
-			const newPrice = '0x' + ('0000000000000000000000000000000000000000000000000000000000000000' + bigNumberify(10).pow(18).mul(531).toHexString().substring(2)).slice(-64)
+			const newPrice = Bytes32.fromHexString('0x' + ('0000000000000000000000000000000000000000000000000000000000000000' + bigNumberify(10).pow(18).mul(531).toHexString().substring(2)).slice(-64))
 			medianizer.poke(newPrice)
 			await delay(15000)
 
@@ -160,14 +160,14 @@ describe('liquid long tests', async () => {
 			const fee = await liquidLong.user.getFeeInEth(2, 1)
 			const cost = (await liquidLong.user.getEstimatedCostsInEth(2, 1)).low
 			const startingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
-			const startingAffiliateAttoeth = await weth.affiliate.balanceOf_(wallets.affiliate.address)
+			const startingAffiliateAttoeth = await weth.affiliate.balanceOf_(Address.fromHexString(wallets.affiliate.address))
 
 			// act
-			await liquidLong.user.openPosition(2, 1, cost, fee, wallets.affiliate.address)
+			await liquidLong.user.openPosition(2, 1, cost, fee, Address.fromHexString(wallets.affiliate.address))
 
 			// assert
 			const endingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
-			const endingAffiliateAttoweth = await weth.affiliate.balanceOf_(wallets.affiliate.address)
+			const endingAffiliateAttoweth = await weth.affiliate.balanceOf_(Address.fromHexString(wallets.affiliate.address))
 			const feeInAttoeth = bigNumberify(fee * 1e9).mul(1e9)
 			const liquidLongBalanceChangeInAttoweth = endingLiquidLongAttoweth.sub(startingLiquidLongAttoweth)
 			const affiliateBalanceChangeInAttoweth = endingAffiliateAttoweth.sub(startingAffiliateAttoeth)
@@ -191,7 +191,7 @@ describe('liquid long tests', async () => {
 	}
 
 	const withdrawAccountWethToEth = async (account: 'owner'|'user'|'affiliate') => {
-		const balance = await weth[account].balanceOf_(wallets[account].address)
+		const balance = await weth[account].balanceOf_(Address.fromHexString(wallets[account].address))
 		if (balance.isZero()) return
 		await weth[account].withdraw(balance)
 	}
@@ -219,14 +219,14 @@ describe('liquid long tests', async () => {
 	}
 })
 
-async function spinUntilNodeIsReady(ethereumAddress: string, liquidLongAddress: string): Promise<void> {
+async function spinUntilNodeIsReady(ethereumJsonRpcUrl: string, liquidLongAddress: Address): Promise<void> {
 	console.log('waiting for node to get into a reasonable state...')
-	const provider = new JsonRpcProvider(ethereumAddress, 4173)
+	const provider = new JsonRpcProvider(ethereumJsonRpcUrl, 4173)
 	// spin until the provider returns a reasonable value
 	while (true) {
 		try {
 			// 0xfa72c53e: providerFeePerEth()
-			if (await provider.call({ to: liquidLongAddress, data: '0xfa72c53e' }) !== '0x') break
+			if (await provider.call({ to: liquidLongAddress.to0xString(), data: '0xfa72c53e' }) !== '0x') break
 		} catch (error) {
 			await delay(100)
 		}

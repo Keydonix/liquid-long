@@ -7,6 +7,7 @@
 		"rootDir": "source",
 		"sourceMap": true,
 		"inlineSources": true,
+		"removeComments": false,
 		"strict": true,
 		"noEmitOnError": true,
 		"noImplicitAny": true,
@@ -16,6 +17,6 @@
 		"lib": [ "es2018" ]
 	},
 	"include": [
-		"**/*.ts",
+		"source/**/*.ts",
 	]
 }
