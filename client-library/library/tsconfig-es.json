@@ -1,0 +1,22 @@
+{
+	"compilerOptions": {
+		"target": "es2017",
+		"module": "es2015",
+		"moduleResolution": "node",
+		"outDir": "output-es",
+		"rootDir": "source",
+		"sourceMap": true,
+		"inlineSources": true,
+		"removeComments": false,
+		"strict": true,
+		"noEmitOnError": true,
+		"noImplicitAny": true,
+		"noImplicitThis": true,
+		"noImplicitReturns": true,
+		"declaration": true,
+		"lib": [ "es2018" ]
+	},
+	"include": [
+		"source/**/*.ts",
+	]
+}

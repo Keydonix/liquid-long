@@ -3,54 +3,118 @@ pragma experimental ABIEncoderV2;
 pragma experimental "v0.5.0";
 
 /**
-* @title SafeMath
-* @dev Math operations with safety checks that throw on error
-* https://github.com/OpenZeppelin/openzeppelin-solidity/blob/56515380452baad9fcd32c5d4502002af0183ce9/contracts/math/SafeMath.sol
-*/
+ * @title SafeMath
+ * @dev Math operations with safety checks that revert on error
+ * https://github.com/OpenZeppelin/openzeppelin-solidity/blob/d17ae0b806b2f8e69b291284bbf30321640609e3/contracts/math/SafeMath.sol
+ */
 library SafeMath {
+	int256 constant private INT256_MIN = -2**255;
 
 	/**
-	* @dev Multiplies two numbers, throws on overflow.
+	* @dev Multiplies two unsigned integers, reverts on overflow.
 	*/
-	function mul(uint256 a, uint256 b) internal pure returns (uint256 c) {
-		// Gas optimization: this is cheaper than asserting 'a' not being zero, but the
-		// benefit is lost if 'b' is also tested.
+	function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+		// Gas optimization: this is cheaper than requiring 'a' not being zero, but the benefit is lost if 'b' is also tested.
 		// See: https://github.com/OpenZeppelin/openzeppelin-solidity/pull/522
 		if (a == 0) {
 			return 0;
 		}
-		c = a * b;
-		assert(c / a == b);
+
+		uint256 c = a * b;
+		require(c / a == b);
+
 		return c;
 	}
 
 	/**
-	* @dev Integer division of two numbers, truncating the quotient.
+	* @dev Multiplies two signed integers, reverts on overflow.
+	*/
+	function mul(int256 a, int256 b) internal pure returns (int256) {
+		// Gas optimization: this is cheaper than requiring 'a' not being zero, but the benefit is lost if 'b' is also tested.
+		// See: https://github.com/OpenZeppelin/openzeppelin-solidity/pull/522
+		if (a == 0) {
+			return 0;
+		}
+
+		require(!(a == -1 && b == INT256_MIN)); // This is the only case of overflow not detected by the check below
+
+		int256 c = a * b;
+		require(c / a == b);
+
+		return c;
+	}
+
+	/**
+	* @dev Integer division of two unsigned integers truncating the quotient, reverts on division by zero.
 	*/
 	function div(uint256 a, uint256 b) internal pure returns (uint256) {
-		// assert(b > 0); // Solidity automatically throws when dividing by 0
-		// uint256 c = a / b;
+		// Solidity only automatically asserts when dividing by 0
+		require(b > 0);
+		uint256 c = a / b;
 		// assert(a == b * c + a % b); // There is no case in which this doesn't hold
-		return a / b;
-	}
 
-	/**
-	* @dev Subtracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
-	*/
-	function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-		assert(b <= a);
-		return a - b;
-	}
-
-	/**
-	* @dev Adds two numbers, throws on overflow.
-	*/
-	function add(uint256 a, uint256 b) internal pure returns (uint256 c) {
-		c = a + b;
-		assert(c >= a);
 		return c;
 	}
 
+	/**
+	* @dev Integer division of two signed integers truncating the quotient, reverts on division by zero.
+	*/
+	function div(int256 a, int256 b) internal pure returns (int256) {
+		require(b != 0); // Solidity only automatically asserts when dividing by 0
+		require(!(b == -1 && a == INT256_MIN)); // This is the only case of overflow
+
+		int256 c = a / b;
+
+		return c;
+	}
+
+	/**
+	* @dev Subtracts two unsigned integers, reverts on overflow (i.e. if subtrahend is greater than minuend).
+	*/
+	function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+		require(b <= a);
+		uint256 c = a - b;
+
+		return c;
+	}
+
+	/**
+	* @dev Subtracts two signed integers, reverts on overflow.
+	*/
+	function sub(int256 a, int256 b) internal pure returns (int256) {
+		int256 c = a - b;
+		require((b >= 0 && c <= a) || (b < 0 && c > a));
+
+		return c;
+	}
+
+	/**
+	* @dev Adds two unsigned integers, reverts on overflow.
+	*/
+	function add(uint256 a, uint256 b) internal pure returns (uint256) {
+		uint256 c = a + b;
+		require(c >= a);
+
+		return c;
+	}
+
+	/**
+	* @dev Adds two signed integers, reverts on overflow.
+	*/
+	function add(int256 a, int256 b) internal pure returns (int256) {
+		int256 c = a + b;
+		require((b >= 0 && c >= a) || (b < 0 && c < a));
+
+		return c;
+	}
+
+	/**
+	* @dev Divides two unsigned integers and returns the remainder (unsigned integer modulo), reverts when dividing by zero.
+	*/
+	function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+		require(b != 0);
+		return a % b;
+	}
 }
 
 /**
@@ -331,6 +395,13 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	ProxyRegistry public proxyRegistry;
 
+	struct CDP {
+		uint256 id;
+		uint256 debtInAttodai;
+		uint256 lockedAttoeth;
+		bool userOwned;
+	}
+
 	event NewCup(address user, bytes32 cup);
 
 	constructor(Oasis _oasis, Maker _maker, ProxyRegistry _proxyRegistry) public payable {
@@ -373,6 +444,10 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		owner.transfer(_amount);
 	}
 
+	function attowethBalance() public view returns (uint256 _attoweth) {
+		return weth.balanceOf(address(this));
+	}
+
 	function ethWithdraw() public onlyOwner {
 		uint256 _amount = address(this).balance;
 		owner.transfer(_amount);
@@ -398,6 +473,30 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			(uint256 _buyAvailableInOffer,  , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
 			if (_payRemaining <= _payAvailableInOffer) {
 				uint256 _buyRemaining = _payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer);
+				_paidAmount = _paidAmount.add(_payRemaining);
+				_boughtAmount = _boughtAmount.add(_buyRemaining);
+				break;
+			}
+			_paidAmount = _paidAmount.add(_payAvailableInOffer);
+			_boughtAmount = _boughtAmount.add(_buyAvailableInOffer);
+			_offerId = oasis.getWorseOffer(_offerId);
+		}
+		return (_paidAmount, _boughtAmount);
+	}
+
+	function estimateDaiPurchaseCosts(uint256 _attodaiToBuy) public view returns (uint256 _wethPaid, uint256 _daiBought) {
+		return getBuyPriceAndAmount(weth, dai, _attodaiToBuy);
+	}
+
+	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
+	function getBuyPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _buyDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
+		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
+		while (_offerId != 0) {
+			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
+			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			if (_buyRemaining <= _buyAvailableInOffer) {
+				// TODO: verify this logic is correct
+				uint256 _payRemaining = _buyRemaining.mul(_payAvailableInOffer).div(_buyAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
 				_boughtAmount = _boughtAmount.add(_buyRemaining);
 				break;
@@ -517,5 +616,59 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 		weth.withdraw(_payoutOwnerInAttoeth);
 		require((DSProxy(msg.sender).owner()).call.value(_payoutOwnerInAttoeth)());
+	}
+
+	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
+	function getCdps(address _owner, uint32 _offset, uint32 _pageSize) public returns (CDP[] _cdps) {
+		// resolve a owner to a proxy, then query by that proxy
+		DSProxy _cdpProxy = proxyRegistry.proxies(_owner);
+		require(_cdpProxy != address(0));
+		return getCdpsByAddresses(_owner, _cdpProxy, _offset, _pageSize);
+	}
+
+	// Retrieve CDPs by TRUE owner, as registered in MAker
+	function getCdpsByAddresses(address _owner, address _proxy, uint32 _offset, uint32 _pageSize) public returns (CDP[] _cdps) {
+		_cdps = new CDP[](getCdpCountByOwnerAndProxy(_owner, _proxy, _offset, _pageSize));
+		uint256 _cdpCount = cdpCount();
+		uint32 _matchCount = 0;
+		for (uint32 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
+			address _cdpOwner = maker.lad(bytes32(_i));
+			if (_cdpOwner != _owner && _cdpOwner != _proxy) continue;
+			_cdps[_matchCount] = getCdpDetailsById(_i, _owner);
+			++_matchCount;
+		}
+		return _cdps;
+	}
+
+	function cdpCount() public view returns (uint32 _cdpCount) {
+		uint256 count = maker.cupi();
+		require(count < 2**32);
+		return uint32(count);
+	}
+
+	function getCdpCountByOwnerAndProxy(address _owner, address _proxy, uint32 _offset, uint32 _pageSize) private view returns (uint32 _count) {
+		uint256 _cdpCount = cdpCount();
+		_count = 0;
+		for (uint32 _i = _offset; _i <= _cdpCount && _i < _offset + _pageSize; ++_i) {
+			address _cdpOwner = maker.lad(bytes32(_i));
+			if (_cdpOwner != _owner && _cdpOwner != _proxy) continue;
+			++_count;
+		}
+		return _count;
+	}
+
+	function getCdpDetailsById(uint32 _cdpId, address _owner) private returns (CDP _cdp) {
+		(address _cdpOwner, uint256 _collateral,,) = maker.cups(bytes32(_cdpId));
+		// this one line makes this function not `view`. tab calls chi, which calls drip which mutates state and we can't directly access _chi to bypass this
+		uint256 _debtInAttodai = maker.tab(bytes32(_cdpId));
+		// Adjust locked attoeth to factor in peth/weth ratio
+		uint256 _lockedAttoeth = (_collateral + 1).mul27(maker.gap().mul18(maker.per()));
+		_cdp = CDP({
+			id: _cdpId,
+			debtInAttodai: _debtInAttodai,
+			lockedAttoeth: _lockedAttoeth,
+			userOwned: _cdpOwner == _owner
+		});
+		return _cdp;
 	}
 }

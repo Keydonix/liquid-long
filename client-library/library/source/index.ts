@@ -1,1 +1,2 @@
-export { LiquidLong } from './liquid-long'
+export { LiquidLong, Position } from './liquid-long.js'
+export { Address } from './generated/liquid-long.js'

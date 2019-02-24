@@ -1,7 +1,8 @@
 ## Building Contracts
 ```
 cd contracts
-npx ts-node --project ./deployment/tsconfig.json ./deployment/scripts/compile.ts
+npm install
+npm run build
 ```
 
 ## Deploying the Contracts
@@ -33,7 +34,7 @@ or
 ```
 cd client-library/library
 npm install
-npx tsc
+npm run build
 ```
 
 ## Testing and Using with a UI

@@ -12,7 +12,7 @@ ENV ETHEREUM_PROXY_REGISTRY=0x4ddebcebe274751dfb129efc96a588a5242530ab
 
 RUN apt-get update && apt-get --yes install git
 
-COPY --from=chain-source /parity/chains /parity/chains
+COPY --from=chain-source /home/parity/chains /home/parity/chains
 
 # cache dependencies when possible
 COPY package.json /app/package.json
@@ -24,12 +24,13 @@ COPY deployment/ /app/deployment/
 COPY source/ /app/source/
 WORKDIR /app
 
-RUN /parity/parity --config /parity/config.toml & \
+RUN /bin/parity --config /home/parity/config.toml & \
 	npx ts-node --project deployment/tsconfig.json deployment/scripts/deploy.ts \
 	&& kill -TERM $(pidof parity)
 
 
 FROM keydonix/parity-instantseal
 
-COPY --from=builder /parity/chains /parity/chains
+USER root
+COPY --from=builder /home/parity/chains /home/parity/chains
 COPY --from=chain-source /contracts /contracts

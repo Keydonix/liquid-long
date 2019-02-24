@@ -1,8 +1,9 @@
 import {PrivateKey} from '../libraries/PrivateKey'
-import {SaiMom, SaiTub} from '../libraries/ContractInterfaces'
 import { Wallet } from 'ethers/wallet'
 import { JsonRpcProvider } from 'ethers/providers'
 import { BigNumber } from 'ethers/utils'
+import { Tub, Mom, Address } from '@keydonix/maker-contract-interfaces';
+import { ContractDependenciesEthers } from '../libraries/liquid-long-ethers-impl';
 
 const ETHER = new BigNumber(10).pow(new BigNumber(18));
 
@@ -15,15 +16,16 @@ function getEnv(name: string): string {
 async function doStuff() {
 	const jsonRpcAddress = getEnv('ETHEREUM_HTTP');
 	const gasPriceInNanoeth = parseInt(getEnv('ETHEREUM_GAS_PRICE_IN_NANOETH'), 10);
-	const momAddress = getEnv('ETHEREUM_MOM_ADDRESS');
-	const makerAddress = getEnv('ETHEREUM_MAKER_ADDRESS');
+	const momAddress = Address.fromHexString(getEnv('ETHEREUM_MOM_ADDRESS'));
+	const makerAddress = Address.fromHexString(getEnv('ETHEREUM_MAKER_ADDRESS'));
 	const privateKey = PrivateKey.fromHexString(getEnv('ETHEREUM_PRIVATE_KEY'))
 
 	const provider = new JsonRpcProvider(jsonRpcAddress, {chainId: 4173, ensAddress: '', name: 'dev'})
-	const wallet = new Wallet(privateKey.toHexStringWithPrefix(), provider)
+	const wallet = new Wallet(privateKey, provider)
+	const dependencies = new ContractDependenciesEthers(provider, wallet, async () => gasPriceInNanoeth)
 
-	const makerContract = new SaiTub(makerAddress, wallet, gasPriceInNanoeth);
-	const momContract = new SaiMom(momAddress, wallet, gasPriceInNanoeth);
+	const makerContract = new Tub(dependencies, makerAddress);
+	const momContract = new Mom(dependencies, momAddress);
 
 	const oldValue = (await makerContract.mat_());
 	console.log("Old mat value:", oldValue.toString());

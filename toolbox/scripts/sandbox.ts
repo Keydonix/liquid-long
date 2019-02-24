@@ -1,5 +1,6 @@
-import { ContractAccessor } from '../libraries/ContractAccessort';
+import { ContractAccessor } from '../libraries/ContractAccessor';
 import { bigNumberify } from 'ethers/utils';
+import { Address } from '../libraries/liquid-long';
 
 const ETH = bigNumberify('1000000000000000000')
 const NETH = bigNumberify('1000000000')
@@ -11,9 +12,9 @@ async function doStuff() {
 	const amount = ETH
 	const fee = await contracts.liquidLong.providerFeePerEth_()
 	const cost = ETH.sub((await contracts.liquidLong.estimateDaiSaleProceeds_(ETH.mul(600)))._wethBought)
-	const attached = amount.add(fee).add(cost)
-	const affiliate = '0000000000000000000000000000000000000000'
-	const logs = await contracts.liquidLong.openCdp(multiplier, amount, fee, affiliate, { attachedEth: attached })
+	const attachedAttoeth = amount.add(fee).add(cost)
+	const affiliate = Address.fromHexString('0000000000000000000000000000000000000000')
+	const logs = await contracts.liquidLong.openCdp(multiplier, amount, fee, affiliate, attachedAttoeth)
 
 	// const result = await contracts.proxyRegistry.proxies_(contracts.wallet.address)
 	// const logs = await contracts.proxyRegistry.build(await contracts.wallet.address)

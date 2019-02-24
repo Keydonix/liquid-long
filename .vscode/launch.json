@@ -112,7 +112,7 @@
 			"cwd": "${workspaceFolder}/client-library/tests/",
 			"program": "${workspaceFolder}/client-library/tests/node_modules/mocha/bin/_mocha",
 			"args": [ "--require", "ts-node/register", "--timeout", "999999", "--colors", "source/**/*.ts" ],
-			"preLaunchTask": "build client library",
+			"preLaunchTask": "build-client-library",
 		},
 		{
 			"type": "node",
@@ -122,6 +122,7 @@
 			"program": "${workspaceFolder}/client-library/integration-tests/node_modules/mocha/bin/_mocha",
 			"args": [ "--require", "ts-node/register", "--timeout", "999999", "--colors", "source/**/*.ts" ],
 			"env": {
+				"ETHEREUM_HTTP": "http://localhost:1235",
 				"TS_NODE_PROJECT": "${workspaceFolder}/client-library/integration-tests/tsconfig.json",
 			}
 		}

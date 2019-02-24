@@ -2,16 +2,21 @@
 	"compilerOptions": {
 		"target": "es2017",
 		"module": "commonjs",
+		"moduleResolution": "node",
+		"outDir": "output-node",
+		"rootDir": "source",
+		"sourceMap": true,
+		"inlineSources": true,
+		"removeComments": false,
 		"strict": true,
 		"noEmitOnError": true,
-		"noEmit": true,
 		"noImplicitAny": true,
 		"noImplicitThis": true,
 		"noImplicitReturns": true,
 		"declaration": true,
-		"lib": [ "es2017" ],
+		"lib": [ "es2018" ]
 	},
 	"include": [
-		"**/*.ts",
-	],
+		"source/**/*.ts",
+	]
 }
