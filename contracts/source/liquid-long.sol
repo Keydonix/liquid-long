@@ -578,17 +578,22 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 		require(maker.lad(_cdpId) == address(this));
 		require(_owner.balance > _startingAttoethBalance);
+		return _payoutOwnerInAttoeth;
 	}
 
 	// Close cdp that was just received as part of the same transaction
 	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
-		(address _owner, uint256 _lockedPethinAttopeth, uint256 _art, uint256 _debtInAttodai) = maker.cups(_cdpId); _owner; _art;
+		(, uint256 _lockedPethInAttopeth, , uint256 _debtInAttodai) = maker.cups(_cdpId);
 
 		// Calculate what we need to claim out of the CDP in Weth
-		uint256 _lockedWethinAttoweth = _lockedPethinAttopeth.div27(maker.per());
+		uint256 _lockedWethInAttoweth = _lockedPethInAttopeth.div27(maker.per());
 
 		// Buy DAI and wipe the entire CDP
-		uint256 _wethSoldInAttoweth = oasis.buyAllAmount(dai, _debtInAttodai, weth, 0); // TODO: check this line/logic/limits
+		// TODO TODO TODO TODO
+		// TODO: check this line/logic/limits
+		// TODO TODO TODO TODO
+		// TODO TODO TODO TODO
+		uint256 _wethSoldInAttoweth = oasis.buyAllAmount(dai, _debtInAttodai, weth, 0);
 		uint256 _providerFeeInAttoeth = _wethSoldInAttoweth.mul18(providerFeePerEth);
 
 		// Calculating governance fee is difficult and gas-intense. Just look up how wiping impacts balance
@@ -601,21 +606,21 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			.div(uint256(maker.pip().read())); // converts DAI to ETH
 
 		// Relying on safe-math to revert a situation where LiquidLong would lose weth
-		_payoutOwnerInAttoeth = _lockedWethinAttoweth.sub(_wethSoldInAttoweth).sub(_providerFeeInAttoeth).sub(_ethValueOfBurnedMkrInAttoeth);
+		_payoutOwnerInAttoeth = _lockedWethInAttoweth.sub(_wethSoldInAttoweth).sub(_providerFeeInAttoeth).sub(_ethValueOfBurnedMkrInAttoeth);
 
 		// Ensure remaining peth in CDP is greater than the value they requested as minimum value
 		require(_payoutOwnerInAttoeth >= _minimumValueInAttoeth);
 
 		// Pull that value from the CDP, convert it back to WETH for next time
 		// We rely on "free" reverting the transaction if there is not enough peth to profitably close CDP
-		maker.free(_cdpId, _lockedPethinAttopeth);
-		maker.exit(_lockedPethinAttopeth);
+		maker.free(_cdpId, _lockedPethInAttopeth);
+		maker.exit(_lockedPethInAttopeth);
 
 		// DSProxy will have issued this request, send it back to DSProxy. CDP is empty and valueless
 		maker.give(_cdpId, msg.sender);
 
 		weth.withdraw(_payoutOwnerInAttoeth);
-		require((DSProxy(msg.sender).owner()).call.value(_payoutOwnerInAttoeth)());
+		require(DSProxy(msg.sender).owner().call.value(_payoutOwnerInAttoeth)());
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
