@@ -574,7 +574,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 _startingAttoethBalance = _owner.balance;
 
 		maker.give(_cdpId, _liquidLong);
-		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(_cdpId, _minimumValueInAttoeth);
+		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(_cdpId, _minimumValueInAttoeth, _owner);
 
 		require(maker.lad(_cdpId) == address(this));
 		require(_owner.balance > _startingAttoethBalance);
@@ -582,7 +582,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// Close cdp that was just received as part of the same transaction
-	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
+	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth, address _recipient) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
+		require(_recipient != address(0));
 		(, uint256 _lockedPethInAttopeth, , uint256 _debtInAttodai) = maker.cups(_cdpId);
 
 		// Calculate what we need to claim out of the CDP in Weth
@@ -616,11 +617,11 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		maker.free(_cdpId, _lockedPethInAttopeth);
 		maker.exit(_lockedPethInAttopeth);
 
-		// DSProxy will have issued this request, send it back to DSProxy. CDP is empty and valueless
+		// DSProxy (or other proxy?) will have issued this request, send it back to the proxy contract. CDP is empty and valueless
 		maker.give(_cdpId, msg.sender);
 
 		weth.withdraw(_payoutOwnerInAttoeth);
-		require(DSProxy(msg.sender).owner().call.value(_payoutOwnerInAttoeth)());
+		require(_recipient.call.value(_payoutOwnerInAttoeth)());
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
