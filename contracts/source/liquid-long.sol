@@ -591,11 +591,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 _lockedWethInAttoweth = _lockedPethInAttopeth.div27(maker.per());
 
 		// Buy DAI and wipe the entire CDP
-		// TODO TODO TODO TODO
-		// TODO: check this line/logic/limits
-		// TODO TODO TODO TODO
-		// TODO TODO TODO TODO
-		uint256 _wethSoldInAttoweth = oasis.buyAllAmount(dai, _debtInAttodai, weth, 0);
+		// Pass in _lockedWethInAttoweth as "max fill amount". If buying DAI costs more in eth than the entire CDP has locked up, revert (we will fail later anyway)
+		uint256 _wethSoldInAttoweth = oasis.buyAllAmount(dai, _debtInAttodai, weth, _lockedWethInAttoweth);
 		uint256 _providerFeeInAttoeth = _wethSoldInAttoweth.mul18(providerFeePerEth);
 
 		// Calculating governance fee is difficult and gas-intense. Just look up how wiping impacts balance
