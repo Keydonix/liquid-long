@@ -584,7 +584,8 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	// Close cdp that was just received as part of the same transaction
 	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth, address _recipient) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
 		require(_recipient != address(0));
-		(, uint256 _lockedPethInAttopeth, , uint256 _debtInAttodai) = maker.cups(_cdpId);
+		uint256 _lockedPethInAttopeth = maker.ink(_cdpId);
+		uint256 _debtInAttodai = maker.tab(_cdpId);
 
 		// Calculate what we need to claim out of the CDP in Weth
 		uint256 _lockedWethInAttoweth = _lockedPethInAttopeth.div27(maker.per());
