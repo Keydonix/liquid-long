@@ -573,10 +573,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		address _owner = DSProxy(msg.sender).owner();
 		uint256 _startingAttoethBalance = _owner.balance;
 
-		maker.give(_cdpId, _liquidLong);
+		// This is delegated, we cannot use storage
+		Maker _maker = _liquidLong.maker();
+		_maker.give(_cdpId, _liquidLong);
 		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(_cdpId, _minimumValueInAttoeth, _owner);
 
-		require(maker.lad(_cdpId) == address(this));
+		require(_maker.lad(_cdpId) == address(this));
 		require(_owner.balance > _startingAttoethBalance);
 		return _payoutOwnerInAttoeth;
 	}
