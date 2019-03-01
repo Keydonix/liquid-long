@@ -416,6 +416,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 		// MatchingMarket buy/sell
 		dai.approve(address(_matchingMarket), uint256(-1));
+		weth.approve(address(_matchingMarket), uint256(-1));
 		// Wipe
 		dai.approve(address(_maker), uint256(-1));
 		mkr.approve(address(_maker), uint256(-1));
@@ -570,7 +571,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	// closeCdp is intended to be a delegate call that executes as a user's DSProxy
 	function closeCdp(LiquidLong _liquidLong, bytes32 _cdpId, uint256 _minimumValueInAttoeth) external returns (uint256 _payoutOwnerInAttoeth) {
-		address _owner = DSProxy(msg.sender).owner();
+		address _owner = DSProxy(this).owner();
 		uint256 _startingAttoethBalance = _owner.balance;
 
 		// This is delegated, we cannot use storage
