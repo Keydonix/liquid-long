@@ -312,16 +312,17 @@ contract Peth is ERC20 {
 
 }
 
-contract Oasis {
+contract MatchingMarket {
 	function getBuyAmount(ERC20 tokenToBuy, ERC20 tokenToPay, uint256 amountToPay) external view returns(uint256 amountBought);
 	function getPayAmount(ERC20 tokenToPay, ERC20 tokenToBuy, uint amountToBuy) public constant returns (uint amountPaid);
 	function getBestOffer(ERC20 sell_gem, ERC20 buy_gem) public constant returns(uint offerId);
 	function getWorseOffer(uint id) public constant returns(uint offerId);
 	function getOffer(uint id) public constant returns (uint pay_amt, ERC20 pay_gem, uint buy_amt, ERC20 buy_gem);
 	function sellAllAmount(ERC20 pay_gem, uint pay_amt, ERC20 buy_gem, uint min_fill_amount) public returns (uint fill_amt);
+	function buyAllAmount(ERC20 buy_gem, uint buy_amt, ERC20 pay_gem, uint max_fill_amount) public returns (uint fill_amt);
 }
 
-contract Medianizer {
+contract DSValue {
 	function read() external view returns(bytes32);
 }
 
@@ -330,7 +331,8 @@ contract Maker {
 	function gem() external view returns(Weth);
 	function gov() external view returns(Mkr);
 	function skr() external view returns(Peth);
-	function pip() external view returns(Medianizer);
+	function pip() external view returns(DSValue);
+	function pep() external view returns(DSValue);
 
 	// Join-Exit Spread
 	 uint256 public gap;
@@ -359,8 +361,10 @@ contract Maker {
 	function open() public returns (bytes32 cup);
 	function give(bytes32 cup, address guy) public;
 	function lock(bytes32 cup, uint wad) public;
+	function free(bytes32 cup, uint wad) public;
 	function draw(bytes32 cup, uint wad) public;
 	function join(uint wad) public;
+	function exit(uint wad) public;
 	function wipe(bytes32 cup, uint wad) public;
 }
 
@@ -382,7 +386,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	uint256 public providerFeePerEth;
 
-	Oasis public oasis;
+	MatchingMarket public matchingMarket;
 	Maker public maker;
 	Dai public dai;
 	Weth public weth;
@@ -400,18 +404,19 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	event NewCup(address user, bytes32 cup);
 
-	constructor(Oasis _oasis, Maker _maker, ProxyRegistry _proxyRegistry) public payable {
+	constructor(MatchingMarket _matchingMarket, Maker _maker, ProxyRegistry _proxyRegistry) public payable {
 		providerFeePerEth = 0.01 ether;
 
-		oasis = _oasis;
+		matchingMarket = _matchingMarket;
 		maker = _maker;
 		dai = maker.sai();
 		weth = maker.gem();
 		peth = maker.skr();
 		mkr = maker.gov();
 
-		// Oasis buy/sell
-		dai.approve(address(_oasis), uint256(-1));
+		// MatchingMarket buy/sell
+		dai.approve(address(_matchingMarket), uint256(-1));
+		weth.approve(address(_matchingMarket), uint256(-1));
 		// Wipe
 		dai.approve(address(_maker), uint256(-1));
 		mkr.approve(address(_maker), uint256(-1));
@@ -461,12 +466,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return getPayPriceAndAmount(dai, weth, _attodaiToSell);
 	}
 
-	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
+	// buy/pay are from the perspective of the taker/caller (MatchingMarket contracts use buy/pay terminology from perspective of the maker)
 	function getPayPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _payDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
-		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
+		uint256 _offerId = matchingMarket.getBestOffer(_buyGem, _payGem);
 		while (_offerId != 0) {
 			uint256 _payRemaining = _payDesiredAmount.sub(_paidAmount);
-			(uint256 _buyAvailableInOffer,  , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			(uint256 _buyAvailableInOffer,  , uint256 _payAvailableInOffer,) = matchingMarket.getOffer(_offerId);
 			if (_payRemaining <= _payAvailableInOffer) {
 				uint256 _buyRemaining = _payRemaining.mul(_buyAvailableInOffer).div(_payAvailableInOffer);
 				_paidAmount = _paidAmount.add(_payRemaining);
@@ -475,7 +480,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			}
 			_paidAmount = _paidAmount.add(_payAvailableInOffer);
 			_boughtAmount = _boughtAmount.add(_buyAvailableInOffer);
-			_offerId = oasis.getWorseOffer(_offerId);
+			_offerId = matchingMarket.getWorseOffer(_offerId);
 		}
 		return (_paidAmount, _boughtAmount);
 	}
@@ -484,12 +489,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return getBuyPriceAndAmount(weth, dai, _attodaiToBuy);
 	}
 
-	// buy/pay are from the perspective of the taker/caller (Oasis contracts use buy/pay terminology from perspective of the maker)
+	// buy/pay are from the perspective of the taker/caller (MatchingMarket contracts use buy/pay terminology from perspective of the maker)
 	function getBuyPriceAndAmount(ERC20 _payGem, ERC20 _buyGem, uint256 _buyDesiredAmount) public view returns (uint256 _paidAmount, uint256 _boughtAmount) {
-		uint256 _offerId = oasis.getBestOffer(_buyGem, _payGem);
+		uint256 _offerId = matchingMarket.getBestOffer(_buyGem, _payGem);
 		while (_offerId != 0) {
 			uint256 _buyRemaining = _buyDesiredAmount.sub(_boughtAmount);
-			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = oasis.getOffer(_offerId);
+			(uint256 _buyAvailableInOffer, , uint256 _payAvailableInOffer,) = matchingMarket.getOffer(_offerId);
 			if (_buyRemaining <= _buyAvailableInOffer) {
 				// TODO: verify this logic is correct
 				uint256 _payRemaining = _buyRemaining.mul(_payAvailableInOffer).div(_buyAvailableInOffer);
@@ -499,7 +504,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			}
 			_paidAmount = _paidAmount.add(_payAvailableInOffer);
 			_boughtAmount = _boughtAmount.add(_buyAvailableInOffer);
-			_offerId = oasis.getWorseOffer(_offerId);
+			_offerId = matchingMarket.getWorseOffer(_offerId);
 		}
 		return (_paidAmount, _boughtAmount);
 	}
@@ -555,13 +560,69 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 	// extracted function to mitigate stack depth issues
 	function sellDai(uint256 _drawInAttodai, uint256 _lockedInCdpInAttoeth, uint256 _feeInAttoeth) private {
-		uint256 _wethBoughtInAttoweth = oasis.sellAllAmount(dai, _drawInAttodai, weth, 0);
+		uint256 _wethBoughtInAttoweth = matchingMarket.sellAllAmount(dai, _drawInAttodai, weth, 0);
 		// SafeMath failure below catches not enough eth provided
 		uint256 _refundDue = msg.value.add(_wethBoughtInAttoweth).sub(_lockedInCdpInAttoeth).sub(_feeInAttoeth);
 		if (_refundDue > 0) {
 			weth.withdraw(_refundDue);
 			require(msg.sender.call.value(_refundDue)());
 		}
+	}
+
+	// closeCdp is intended to be a delegate call that executes as a user's DSProxy
+	function closeCdp(LiquidLong _liquidLong, bytes32 _cdpId, uint256 _minimumValueInAttoeth) external returns (uint256 _payoutOwnerInAttoeth) {
+		address _owner = DSProxy(this).owner();
+		uint256 _startingAttoethBalance = _owner.balance;
+
+		// This is delegated, we cannot use storage
+		Maker _maker = _liquidLong.maker();
+		_maker.give(_cdpId, _liquidLong);
+		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(_cdpId, _minimumValueInAttoeth, _owner);
+
+		require(_maker.lad(_cdpId) == address(this));
+		require(_owner.balance > _startingAttoethBalance);
+		return _payoutOwnerInAttoeth;
+	}
+
+	// Close cdp that was just received as part of the same transaction
+	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth, address _recipient) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
+		require(_recipient != address(0));
+		uint256 _lockedPethInAttopeth = maker.ink(_cdpId);
+		uint256 _debtInAttodai = maker.tab(_cdpId);
+
+		// Calculate what we need to claim out of the CDP in Weth
+		uint256 _lockedWethInAttoweth = _lockedPethInAttopeth.div27(maker.per());
+
+		// Buy DAI and wipe the entire CDP
+		// Pass in _lockedWethInAttoweth as "max fill amount". If buying DAI costs more in eth than the entire CDP has locked up, revert (we will fail later anyway)
+		uint256 _wethSoldInAttoweth = matchingMarket.buyAllAmount(dai, _debtInAttodai, weth, _lockedWethInAttoweth);
+		uint256 _providerFeeInAttoeth = _wethSoldInAttoweth.mul18(providerFeePerEth);
+
+		// Calculating governance fee is difficult and gas-intense. Just look up how wiping impacts balance
+		// Then convert that difference into weth, the only asset we charge in. This will require loading up
+		// mkr periodically
+		uint256 _mkrBalanceBeforeInAttomkr = mkr.balanceOf(this);
+		maker.wipe(_cdpId, _debtInAttodai);
+		uint256 _mkrBurnedInAttomkr = _mkrBalanceBeforeInAttomkr.sub(mkr.balanceOf(this));
+		uint256 _ethValueOfBurnedMkrInAttoeth = _mkrBurnedInAttomkr.mul(uint256(maker.pep().read())) // converts Mkr to DAI
+			.div(uint256(maker.pip().read())); // converts DAI to ETH
+
+		// Relying on safe-math to revert a situation where LiquidLong would lose weth
+		_payoutOwnerInAttoeth = _lockedWethInAttoweth.sub(_wethSoldInAttoweth).sub(_providerFeeInAttoeth).sub(_ethValueOfBurnedMkrInAttoeth);
+
+		// Ensure remaining peth in CDP is greater than the value they requested as minimum value
+		require(_payoutOwnerInAttoeth >= _minimumValueInAttoeth);
+
+		// Pull that value from the CDP, convert it back to WETH for next time
+		// We rely on "free" reverting the transaction if there is not enough peth to profitably close CDP
+		maker.free(_cdpId, _lockedPethInAttopeth);
+		maker.exit(_lockedPethInAttopeth);
+
+		// DSProxy (or other proxy?) will have issued this request, send it back to the proxy contract. CDP is empty and valueless
+		maker.give(_cdpId, msg.sender);
+
+		weth.withdraw(_payoutOwnerInAttoeth);
+		require(_recipient.call.value(_payoutOwnerInAttoeth)());
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
