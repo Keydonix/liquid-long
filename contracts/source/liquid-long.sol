@@ -603,7 +603,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		// mkr periodically
 		uint256 _mkrBalanceBeforeInAttomkr = mkr.balanceOf(this);
 		maker.wipe(_cdpId, _debtInAttodai);
-		uint256 _mkrBurnedInAttomkr = mkr.balanceOf(this).sub(_mkrBalanceBeforeInAttomkr);
+		uint256 _mkrBurnedInAttomkr = _mkrBalanceBeforeInAttomkr.sub(mkr.balanceOf(this));
 		uint256 _ethValueOfBurnedMkrInAttoeth = _mkrBurnedInAttomkr.mul(uint256(maker.pep().read())) // converts Mkr to DAI
 			.div(uint256(maker.pip().read())); // converts DAI to ETH
 
