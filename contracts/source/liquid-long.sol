@@ -399,10 +399,12 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 id;
 		uint256 debtInAttodai;
 		uint256 lockedAttoeth;
+		address owner;
 		bool userOwned;
 	}
 
-	event NewCup(address user, bytes32 cup);
+	event NewCup(address user, uint256 cup);
+	event CloseCup(address user, uint256 cup);
 
 	constructor(MatchingMarket _matchingMarket, Maker _maker, ProxyRegistry _proxyRegistry) public payable {
 		providerFeePerEth = 0.01 ether;
@@ -544,7 +546,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
 		}
 
-		emit NewCup(msg.sender, _cdpId);
+		emit NewCup(msg.sender, uint256(_cdpId));
 
 		giveCdpToProxy(msg.sender, _cdpId);
 	}
@@ -570,16 +572,21 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// closeCdp is intended to be a delegate call that executes as a user's DSProxy
-	function closeCdp(LiquidLong _liquidLong, bytes32 _cdpId, uint256 _minimumValueInAttoeth) external returns (uint256 _payoutOwnerInAttoeth) {
+	function closeCdp(LiquidLong _liquidLong, uint256 _cdpId, uint256 _minimumValueInAttoeth) external returns (uint256 _payoutOwnerInAttoeth) {
 		address _owner = DSProxy(this).owner();
 		uint256 _startingAttoethBalance = _owner.balance;
 
 		// This is delegated, we cannot use storage
 		Maker _maker = _liquidLong.maker();
-		_maker.give(_cdpId, _liquidLong);
-		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(_cdpId, _minimumValueInAttoeth, _owner);
 
-		require(_maker.lad(_cdpId) == address(this));
+		// if the CDP is already empty, early return (this allows this method to be called off-chain to check estimated payout and not fail for empty CDPs)
+		uint256 _lockedPethInAttopeth = _maker.ink(bytes32(_cdpId));
+		if (_lockedPethInAttopeth == 0) return 0;
+
+		_maker.give(bytes32(_cdpId), _liquidLong);
+		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(bytes32(_cdpId), _minimumValueInAttoeth, _owner);
+
+		require(_maker.lad(bytes32(_cdpId)) == address(this));
 		require(_owner.balance > _startingAttoethBalance);
 		return _payoutOwnerInAttoeth;
 	}
@@ -623,6 +630,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 		weth.withdraw(_payoutOwnerInAttoeth);
 		require(_recipient.call.value(_payoutOwnerInAttoeth)());
+		emit CloseCup(msg.sender, _cdpId);
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
@@ -633,7 +641,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		return getCdpsByAddresses(_owner, _cdpProxy, _offset, _pageSize);
 	}
 
-	// Retrieve CDPs by TRUE owner, as registered in MAker
+	// Retrieve CDPs by TRUE owner, as registered in Maker
 	function getCdpsByAddresses(address _owner, address _proxy, uint32 _offset, uint32 _pageSize) public returns (CDP[] _cdps) {
 		_cdps = new CDP[](getCdpCountByOwnerAndProxy(_owner, _proxy, _offset, _pageSize));
 		uint256 _cdpCount = cdpCount();
@@ -674,6 +682,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 			id: _cdpId,
 			debtInAttodai: _debtInAttodai,
 			lockedAttoeth: _lockedAttoeth,
+			owner: _cdpOwner,
 			userOwned: _cdpOwner == _owner
 		});
 		return _cdp;

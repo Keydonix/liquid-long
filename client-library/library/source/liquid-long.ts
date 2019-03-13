@@ -1,11 +1,13 @@
 import { LiquidLong as LiquidLongContract, Address } from './generated/liquid-long.js'
-import { ContractDependenciesEthers, Provider, Signer } from './liquid-long-ethers-impl.js'
+import { ContractDependenciesEthers, Provider, Signer, CloseDelegatingContractDependenciesEthers } from './liquid-long-ethers-impl.js'
 import { Scheduler, TimeoutScheduler } from './scheduler.js'
 import { PolledValue } from './polled-value.js'
 import { ethers } from 'ethers'
 
 
 export class LiquidLong {
+	private readonly contractAddress: Address
+	private readonly contractDependencies: ContractDependenciesEthers
 	private readonly contract: LiquidLongContract<ethers.utils.BigNumber>
 	private readonly maxLeverageSizeInEth: PolledValue<number>
 	private readonly ethPriceInUsd: PolledValue<number>
@@ -29,8 +31,9 @@ export class LiquidLong {
 	}
 
 	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLong: Address, defaultGasPriceInNanoeth: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
-		const contractDependencies = new ContractDependenciesEthers(provider, signer, async () => defaultGasPriceInNanoeth)
-		this.contract = new LiquidLongContract(contractDependencies, liquidLong)
+		this.contractAddress = liquidLong
+		this.contractDependencies = new ContractDependenciesEthers(provider, signer, async () => defaultGasPriceInNanoeth)
+		this.contract = new LiquidLongContract(this.contractDependencies, liquidLong)
 		this.maxLeverageSizeInEth = new PolledValue(scheduler, this.fetchMaxLeverageSizeInEth, ethPricePollingFrequency)
 		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency)
 		this.providerFeeRate = new PolledValue(scheduler, this.fetchProviderFeeRate, providerFeePollingFrequency)
@@ -117,14 +120,12 @@ export class LiquidLong {
 	/**
 	 * @returns null when there is not enough ETH available to buy with DAI on market
 	 */
-	public tryGetEstimatedCloseYieldInEth = async (ethLockedInCdp: number, debtInDai: number): Promise<number | null> => {
-		const debtInAttodai = ethers.utils.bigNumberify(debtInDai * 1e9).mul(1e9)
-		const { _wethPaid: costToCoverDebtInAttoeth, _daiBought: attodaiCleared } = await this.contract.estimateDaiPurchaseCosts_(debtInAttodai)
-		const costToCoverDebtInEth = costToCoverDebtInAttoeth.div(1e9).toNumber() / 1e9
-		// CONSIDER: do we need to deal with rounding errors here
-		if (!attodaiCleared.eq(debtInAttodai)) return null
-		const remainingEth = ethLockedInCdp - costToCoverDebtInEth
-		return remainingEth
+	public tryGetEstimatedCloseYieldInEth = async (cdpOwner: Address, cdpId: number): Promise<number> => {
+		const delegatorAddress: Address = cdpOwner
+		const delegatingDependencies = new CloseDelegatingContractDependenciesEthers(this.contractDependencies, delegatorAddress)
+		const delegatedContract = new LiquidLongContract(delegatingDependencies, this.contractAddress)
+		const estimatedYieldInAttoeth = await delegatedContract.closeCdp_(this.contractAddress, ethers.utils.bigNumberify(cdpId), ethers.utils.bigNumberify(0))
+		return estimatedYieldInAttoeth.div(1e9).toNumber() / 1e9
 	}
 
 	public getPositions = async (holder: Address): Promise<Array<Position>> => {
@@ -137,6 +138,7 @@ export class LiquidLong {
 				id: cdp.id.toNumber(),
 				collateralInEth: cdp.lockedAttoeth.div(1e9).toNumber() / 1e9,
 				debtInDai: cdp.debtInAttodai.div(1e9).toNumber() / 1e9,
+				owner: cdp.owner,
 				proxied: !cdp.userOwned,
 			}))
 			positions.push(... pageOfPositions)
@@ -154,8 +156,19 @@ export class LiquidLong {
 		const events = await this.contract.openCdp(leverageMultiplierInPercents, leverageSizeInAttoeth, allowedFeeInAttoeth, affiliateAddress, totalAttoeth)
 		const newCupEvent = <LiquidLongContract.NewCup<ethers.utils.BigNumber>>events.find(x => x.name === 'NewCup')
 		if (!newCupEvent) throw new Error(`Expected 'newCup' event when calling 'openCdp' but no such event found.`)
-		if (!newCupEvent.parameters || !newCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'NewCup' event.\n${newCupEvent}`)
+		if (!newCupEvent.parameters || !newCupEvent.parameters.user || !newCupEvent.parameters.cup) throw new Error(`Unexpected contents for the 'NewCup' event.\n${newCupEvent}`)
 		return Number.parseInt(newCupEvent.parameters.cup.toString(), 16)
+	}
+
+	public closePosition = async (cdpOwner: Address, cdpId: number, minimumPayoutInEth: number): Promise<void> => {
+		const delegatorAddress: Address = cdpOwner
+		const delegatingDependencies = new CloseDelegatingContractDependenciesEthers(this.contractDependencies, delegatorAddress)
+		const delegatedContract = new LiquidLongContract(delegatingDependencies, this.contractAddress)
+		const minimumPayoutInAttoeth = ethers.utils.bigNumberify(Math.floor(minimumPayoutInEth * 1e9)).mul(1e9)
+		const events = await delegatedContract.closeCdp(this.contractAddress, ethers.utils.bigNumberify(cdpId), minimumPayoutInAttoeth)
+		const closeCupEvent = <LiquidLongContract.CloseCup<ethers.utils.BigNumber>>events.find(x => x.name === 'CloseCup')
+		if (!closeCupEvent) throw new Error(`Expected 'closeCup' event when calling 'closeCdp' but no such event found.`)
+		if (!closeCupEvent.parameters || !closeCupEvent.parameters.user) throw new Error(`Unexpected contents for the 'CloseCup' event.\n${closeCupEvent}`)
 	}
 
 	public adminDepositEth = async (amount: number): Promise<void> => {
@@ -201,6 +214,7 @@ export interface Position {
 	id: number,
 	collateralInEth: number,
 	debtInDai: number,
+	owner: Address,
 	proxied: boolean,
 }
 
