@@ -19,7 +19,7 @@ export class ContractDependenciesEthers implements Dependencies<ethers.utils.Big
 
 	call = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<Uint8Array> => {
 		const ethersTransaction: ethers.providers.TransactionRequest = {
-			from: await this.signer.getAddress(),
+			from: await this.getSignerOrZero(),
 			to: transaction.to.to0xString(),
 			data: transaction.data.to0xString(),
 			value: transaction.value
@@ -78,6 +78,19 @@ export class ContractDependenciesEthers implements Dependencies<ethers.utils.Big
 	decodeLargeUnsignedInteger = (data: Bytes32): ethers.utils.BigNumber => new ethers.utils.BigNumber(data)
 
 	decodeLargeSignedInteger = (data: Bytes32): ethers.utils.BigNumber => new ethers.utils.BigNumber(data).fromTwos(256)
+
+	/**
+	 * Get the address of the signer, or zero if the signer address can't be fetched (for example, if privacy mode is enabled in the signing tool).
+	 *
+	 * FIXME: some functions may require a legitimate from address, while others do not. this information is known by the developer who calls the contract, but not known to the rest of the system. we need a way for the caller to specify, 'if a user address is not available, then fail, otherwise use the 0 address'
+	 */
+	private getSignerOrZero = async () => {
+		try {
+			return await this.signer.getAddress()
+		} catch (error) {
+			return new Address().to0xString()
+		}
+	}
 }
 
 /**
