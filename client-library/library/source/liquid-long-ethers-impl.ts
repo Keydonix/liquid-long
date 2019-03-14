@@ -1,4 +1,4 @@
-import { Dependencies, Transaction, TransactionReceipt, Bytes32, Bytes } from './generated/liquid-long.js'
+import { Dependencies, Transaction, TransactionReceipt, Bytes32, Bytes, Address, DSProxy } from './generated/liquid-long.js'
 import { ethers } from 'ethers'
 
 
@@ -78,4 +78,66 @@ export class ContractDependenciesEthers implements Dependencies<ethers.utils.Big
 	decodeLargeUnsignedInteger = (data: Bytes32): ethers.utils.BigNumber => new ethers.utils.BigNumber(data)
 
 	decodeLargeSignedInteger = (data: Bytes32): ethers.utils.BigNumber => new ethers.utils.BigNumber(data).fromTwos(256)
+}
+
+/**
+ * This set of dependencies wraps another set of dependencies but stashes the raw response from call and sendTransaction.  This is useful if you want to create something like the delegating dependencies which need to propogate out low-level responses rather than using the high level decoded response.  This class is not safe to be used concurrently (results will overwrite each other) so it is designed to throw if you _ever_ make two calls with it.  Instantiation of this is very cheap, and it doesn't pin itself so just new up one of these anytime you need to use it then discard it as soon as you have used it once.
+ */
+class StashingContractDependenciesEthers implements Dependencies<ethers.utils.BigNumber> {
+	public lastCallResult?: Uint8Array
+	public lastSendResult?: TransactionReceipt
+
+	public constructor(private readonly contractDependencies: ContractDependenciesEthers) {}
+	call = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<Uint8Array> => {
+		this.lastCallResult = await this.contractDependencies.call(transaction)
+		return this.lastCallResult
+	}
+	submitTransaction = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<TransactionReceipt> => {
+		this.lastSendResult = await this.contractDependencies.submitTransaction(transaction)
+		return this.lastSendResult
+	}
+	isLargeInteger = this.contractDependencies.isLargeInteger
+	encodeLargeUnsignedInteger = this.contractDependencies.encodeLargeUnsignedInteger
+	encodeLargeSignedInteger = this.contractDependencies.encodeLargeSignedInteger
+	decodeLargeUnsignedInteger = this.contractDependencies.decodeLargeUnsignedInteger
+	decodeLargeSignedInteger = this.contractDependencies.decodeLargeSignedInteger
+}
+
+/**
+ * This set of dependencies has code to make it so calls to `closeCdp(LiquidLong _liquidLong, uint256 _cdpId, uint256 _minimumValueInAttoeth)` will be converted to a proxy call through the provided delegator adderss using DSProxy.execute.  This class should be used once and then discarded due to `StashingContractDependenciesEthers` which isn't safe to be called multiple times concurrently, so it will throw if it is ever called twice.
+ */
+export class CloseDelegatingContractDependenciesEthers implements Dependencies<ethers.utils.BigNumber> {
+	private readonly stashingContractDependencies: StashingContractDependenciesEthers
+	private burned = false
+	public constructor(private readonly contractDependencies: ContractDependenciesEthers, private readonly delegatorAddress: Address) {
+		this.stashingContractDependencies = new StashingContractDependenciesEthers(contractDependencies)
+	}
+
+	call = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<Uint8Array> => {
+		// 082a7f79 is the signature hash for closeCDP method
+		if (transaction.data.toString().startsWith('dfaf3658')) {
+			if (this.burned) throw new Error(`CloseDelegatingContractDependencies is designed to be used once and then discarded, you should not use it for multiple calls.`)
+			this.burned = true
+			const proxy = new DSProxy(this.stashingContractDependencies, this.delegatorAddress)
+			await proxy.execute_(transaction.to, transaction.data, transaction.value)
+			return this.stashingContractDependencies.lastCallResult!
+		}
+		return await this.stashingContractDependencies.call(transaction)
+	}
+	submitTransaction = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<TransactionReceipt>  => {
+		// 082a7f79 is the signature hash for closeCDP method
+		if (transaction.data.toString().startsWith('dfaf3658')) {
+			if (this.burned) throw new Error(`CloseDelegatingContractDependencies is designed to be used once and then discarded, you should not use it for multiple calls.`)
+			this.burned = true
+			const proxy = new DSProxy(this.stashingContractDependencies, this.delegatorAddress)
+			await proxy.execute(transaction.to, transaction.data, transaction.value)
+			return this.stashingContractDependencies.lastSendResult!
+		}
+		return await this.stashingContractDependencies.submitTransaction(transaction)
+	}
+	isLargeInteger = this.contractDependencies.isLargeInteger
+	encodeLargeUnsignedInteger = this.contractDependencies.encodeLargeUnsignedInteger
+	encodeLargeSignedInteger = this.contractDependencies.encodeLargeSignedInteger
+	decodeLargeUnsignedInteger = this.contractDependencies.decodeLargeUnsignedInteger
+	decodeLargeSignedInteger = this.contractDependencies.decodeLargeSignedInteger
 }
