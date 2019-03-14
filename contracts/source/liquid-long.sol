@@ -630,7 +630,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 
 		weth.withdraw(_payoutOwnerInAttoeth);
 		require(_recipient.call.value(_payoutOwnerInAttoeth)());
-		emit CloseCup(msg.sender, _cdpId);
+		emit CloseCup(msg.sender, uint256(_cdpId));
 	}
 
 	// Retrieve CDPs by EFFECTIVE owner, which address owns the DSProxy which owns the CDPs
