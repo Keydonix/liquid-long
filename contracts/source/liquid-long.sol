@@ -535,17 +535,19 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		maker.join(_attopethLockedInCdp);
 		// Store PETH in CDP
 		maker.lock(_cdpId, _attopethLockedInCdp);
-		// Withdraw DAI from CDP
-		maker.draw(_cdpId, _drawInAttodai);
-		// Sell DAI for WETH
-		sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth);
-		// Pay provider fee
-		if (_affiliateAddress != address(0)) {
-			// Fee charged is constant. If affiliate provided, split fee with affiliate
-			// Don't bother sending eth to owner, the owner has all weth anyway
-			weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
-		}
 
+		if (_drawInAttodai > 0) {
+			// Withdraw DAI from CDP
+			maker.draw(_cdpId, _drawInAttodai);
+			// Sell DAI for WETH
+			sellDai(_drawInAttodai, _lockedInCdpInAttoeth, _feeInAttoeth);
+			// Pay provider fee
+			if (_affiliateAddress != address(0)) {
+				// Fee charged is constant. If affiliate provided, split fee with affiliate
+				// Don't bother sending eth to owner, the owner has all weth anyway
+				weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
+			}
+		}
 		emit NewCup(msg.sender, uint256(_cdpId));
 
 		giveCdpToProxy(msg.sender, _cdpId);
