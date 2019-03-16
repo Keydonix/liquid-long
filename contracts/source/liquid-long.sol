@@ -542,7 +542,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		// Pay provider fee
 		if (_affiliateAddress != address(0)) {
 			// Fee charged is constant. If affiliate provided, split fee with affiliate
-			// Don't bother sending eth to owner, the owner has all non-async-sent eth anyway
+			// Don't bother sending eth to owner, the owner has all weth anyway
 			weth.transfer(_affiliateAddress, _feeInAttoeth.div(2));
 		}
 
@@ -572,7 +572,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// closeCdp is intended to be a delegate call that executes as a user's DSProxy
-	function closeCdp(LiquidLong _liquidLong, uint256 _cdpId, uint256 _minimumValueInAttoeth) external returns (uint256 _payoutOwnerInAttoeth) {
+	function closeCdp(LiquidLong _liquidLong, uint256 _cdpId, uint256 _minimumValueInAttoeth, address _affiliateAddress) external returns (uint256 _payoutOwnerInAttoeth) {
 		address _owner = DSProxy(this).owner();
 		uint256 _startingAttoethBalance = _owner.balance;
 
@@ -584,7 +584,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		if (_lockedPethInAttopeth == 0) return 0;
 
 		_maker.give(bytes32(_cdpId), _liquidLong);
-		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(bytes32(_cdpId), _minimumValueInAttoeth, _owner);
+		_payoutOwnerInAttoeth = _liquidLong.closeGiftedCdp(bytes32(_cdpId), _minimumValueInAttoeth, _owner, _affiliateAddress);
 
 		require(_maker.lad(bytes32(_cdpId)) == address(this));
 		require(_owner.balance > _startingAttoethBalance);
@@ -592,7 +592,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 	}
 
 	// Close cdp that was just received as part of the same transaction
-	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth, address _recipient) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
+	function closeGiftedCdp(bytes32 _cdpId, uint256 _minimumValueInAttoeth, address _recipient, address _affiliateAddress) external wethBalanceIncreased returns (uint256 _payoutOwnerInAttoeth) {
 		require(_recipient != address(0));
 		uint256 _lockedPethInAttopeth = maker.ink(_cdpId);
 		uint256 _debtInAttodai = maker.tab(_cdpId);
@@ -629,6 +629,11 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		maker.give(_cdpId, msg.sender);
 
 		weth.withdraw(_payoutOwnerInAttoeth);
+		if (_affiliateAddress != address(0)) {
+			// Fee charged is constant. If affiliate provided, split fee with affiliate
+			// Don't bother sending eth to owner, the owner has all weth anyway
+			weth.transfer(_affiliateAddress, _providerFeeInAttoeth.div(2));
+		}
 		require(_recipient.call.value(_payoutOwnerInAttoeth)());
 		emit CloseCup(msg.sender, uint256(_cdpId));
 	}
