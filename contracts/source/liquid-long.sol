@@ -536,6 +536,9 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		// Store PETH in CDP
 		maker.lock(_cdpId, _attopethLockedInCdp);
 
+		// This could be 0 if the user has requested a leverage of exactly 100 (1x).
+		// There's no reason to draw 0 dai, try to sell it, or to pay out affiliate
+		// Drawn dai is used to satisfy the _loanInAttoeth. 0 DAI means 0 loan.
 		if (_drawInAttodai > 0) {
 			// Withdraw DAI from CDP
 			maker.draw(_cdpId, _drawInAttodai);
