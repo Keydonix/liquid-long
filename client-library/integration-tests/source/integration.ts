@@ -4,7 +4,7 @@ import 'mocha'
 import { expect } from 'chai'
 import { LiquidLong, Address } from '@keydonix/liquid-long-client-library'
 import { TimeoutScheduler } from '@keydonix/liquid-long-client-library/output-node/scheduler';
-import { Oasis, Sai, Gem, Tub, Pip, Bytes32 } from '@keydonix/maker-contract-interfaces'
+import { Oasis, Sai, Gem, Tub, Pip, Bytes32, Gov } from '@keydonix/maker-contract-interfaces'
 import { ContractDependenciesEthers } from './contract-dependencies'
 import { getEnv } from './environment'
 import { JsonRpcProvider } from 'ethers/providers'
@@ -29,6 +29,7 @@ describe('liquid long tests', async () => {
 	let maker: Tub<BigNumber>
 	let medianizer: Pip<BigNumber>
 	let dai: Sai<BigNumber>
+	let mkr: Gov<BigNumber>
 	let weth: { owner: Gem<BigNumber>, user: Gem<BigNumber>, affiliate: Gem<BigNumber>}
 
 	before(async () => {
@@ -63,6 +64,7 @@ describe('liquid long tests', async () => {
 		maker = new Tub(ownerDependencies, makerAddress)
 		medianizer = new Pip(ownerDependencies, await maker.pip_())
 		dai = new Sai(ownerDependencies, daiAddress)
+		mkr = new Gov(ownerDependencies, await maker.gov_())
 		weth = {
 			owner: new Gem(ownerDependencies, wethAddress),
 			user: new Gem(userDependencies, wethAddress),
@@ -72,23 +74,26 @@ describe('liquid long tests', async () => {
 		await liquidLong.owner.awaitReady
 		await liquidLong.user.awaitReady
 		await liquidLong.affiliate.awaitReady
+	})
 
-		// this stuff really should be in `beforeEach`, but Geth is super slow so...
+	after(async () => {
+		await liquidLong.owner.shutdown()
+		await liquidLong.user.shutdown()
+		await liquidLong.affiliate.shutdown()
+	})
+
+	beforeEach(async () => {
 		await sweep()
 		await fundAccount('user', 1e9)
 		await fundAccount('affiliate', 1e9)
 		await liquidLong.owner.adminDepositEth(100)
+		await mkr.mint(liquidLongAddress, QUINTILLION)
 		await oasis.offer(QUINTILLION.mul(100), wethAddress, QUINTILLION.mul(600*100 * 1.02), daiAddress, bigNumberify(0))
 		await oasis.offer(QUINTILLION.mul(600*100), daiAddress, QUINTILLION.mul(100 * 1.02), wethAddress, bigNumberify(0))
 	})
 
-	after(async () => {
-		// this stuff should really be in `afterEach`, but Geth is super slow so...
+	afterEach(async () => {
 		await sweep()
-
-		await liquidLong.owner.shutdown()
-		await liquidLong.user.shutdown()
-		await liquidLong.affiliate.shutdown()
 	})
 
 	describe('getEthPriceInUsd', async () => {
@@ -120,11 +125,11 @@ describe('liquid long tests', async () => {
 	})
 
 	describe('openPosition', async () => {
-		// FIXME: Attempting to open a position with 1x leverage will fail, we should either fail faster (in JS land), or fix the contract to let you open a 1x leverage position
-		// it('should be able to open an unleveraged position', async () => {
-		// 	await liquidLong.openPosition(1, 1, 1, 1)
-		// 	await liquidLong.adminWithdrawEth(100)
-		// })
+		it('should be able to open an unleveraged position', async () => {
+			const cupId = await liquidLong.user.openPosition(1, 1, 1, 1)
+
+			expect(cupId).to.be.greaterThan(0)
+		})
 
 		// intentionally uses owner account since that is using the primary LL entrypoint (other accounts manually construct for inline signing) and we want to exercise that here
 		it('should be able to open a leveraged position', async () => {
@@ -176,6 +181,52 @@ describe('liquid long tests', async () => {
 		})
 	})
 
+	describe('closePosition', async () => {
+		it('should be able to close a leveraged position', async () => {
+			// arrange
+			const fee = await liquidLong.user.getFeeInEth(2, 1)
+			const cost = (await liquidLong.user.getEstimatedCostsInEth(2, 1)).low
+			const cupId = await liquidLong.user.openPosition(2, 1, cost, fee)
+			const encodedCupId = Bytes32.fromByteArray(maker.encodeParameters([{name: 'temp', type: 'uint256'}], [bigNumberify(cupId)]))
+			const proxy = await maker.lad_(encodedCupId)
+			// CDP fees change every second, so if the time between estimating this value and then actually closing the position ticks past a 1 second block boundary then the close will fail, so we fudge this by a tiny amount
+			const expectedPayout = await liquidLong.user.tryGetEstimatedCloseYieldInEth(proxy, cupId) - 0.000001
+			const startingEthBalance = Number.parseInt((await wallets.user.getBalance()).toString(), 10) / 1e18
+
+			// act
+			await liquidLong.user.closePosition(proxy, cupId, expectedPayout)
+
+			// assert
+			const endingEthBalance = Number.parseInt((await wallets.user.getBalance()).toString(), 10) / 1e18
+			expect(endingEthBalance).to.be.approximately(startingEthBalance + expectedPayout, 0.000001)
+			const lockedCollateral = (await maker.ink_(encodedCupId)).div(1e9).toNumber() / 1e9
+			expect(lockedCollateral).to.equal(0)
+		})
+
+		it('should split fee with affiliate', async () => {
+			// arrange
+			const fee = await liquidLong.user.getFeeInEth(2, 1)
+			const cost = (await liquidLong.user.getEstimatedCostsInEth(2, 1)).low
+			const cupId = await liquidLong.user.openPosition(2, 1, cost, fee)
+			const encodedCupId = Bytes32.fromByteArray(maker.encodeParameters([{name: 'temp', type: 'uint256'}], [bigNumberify(cupId)]))
+			const proxy = await maker.lad_(encodedCupId)
+			const affiliate = Address.fromHexString(wallets.affiliate.address)
+			const startingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
+			const startingAffiliateAttoeth = await weth.affiliate.balanceOf_(affiliate)
+
+			// act
+			await liquidLong.user.closePosition(proxy, cupId, 0, affiliate)
+
+			// assert
+			const endingLiquidLongAttoweth = await weth.owner.balanceOf_(liquidLongAddress)
+			const endingAffiliateAttoweth = await weth.affiliate.balanceOf_(affiliate)
+			const liquidLongBalanceChangeInAttoweth = endingLiquidLongAttoweth.sub(startingLiquidLongAttoweth).div(1e9).toNumber() / 1e9
+			const affiliateBalanceChangeInAttoweth = endingAffiliateAttoweth.sub(startingAffiliateAttoeth).div(1e9).toNumber() / 1e9
+			expect(affiliateBalanceChangeInAttoweth).to.be.greaterThan(0)
+			expect(liquidLongBalanceChangeInAttoweth).to.equal(affiliateBalanceChangeInAttoweth)
+		})
+	})
+
 	const fundAccount = async (account: 'user'|'affiliate', amount: number) => {
 		const value = QUINTILLION.mul(amount)
 		if (value.isZero()) return
@@ -200,6 +251,7 @@ describe('liquid long tests', async () => {
 		await clearOasisOrderbook()
 		const wethBalance = await weth.owner.balanceOf_(liquidLongAddress)
 		await liquidLong.owner.adminWithdrawWeth(wethBalance.div(1e9).toNumber() / 1e9)
+		await liquidLong.owner.adminWithdrawMkr()
 		await withdrawAccountWethToEth('affiliate')
 		await sweepAccountEth('user')
 		await sweepAccountEth('affiliate')

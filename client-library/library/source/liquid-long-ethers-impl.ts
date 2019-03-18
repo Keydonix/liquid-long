@@ -127,8 +127,8 @@ export class CloseDelegatingContractDependenciesEthers implements Dependencies<e
 	}
 
 	call = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<Uint8Array> => {
-		// 082a7f79 is the signature hash for closeCDP method
-		if (transaction.data.toString().startsWith('dfaf3658')) {
+		// 082a7f79 is the signature hash for closeCdp(address,uint256,uint256,address) method
+		if (transaction.data.toString().startsWith('46fde171')) {
 			if (this.burned) throw new Error(`CloseDelegatingContractDependencies is designed to be used once and then discarded, you should not use it for multiple calls.`)
 			this.burned = true
 			const proxy = new DSProxy(this.stashingContractDependencies, this.delegatorAddress)
@@ -138,8 +138,8 @@ export class CloseDelegatingContractDependenciesEthers implements Dependencies<e
 		return await this.stashingContractDependencies.call(transaction)
 	}
 	submitTransaction = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<TransactionReceipt>  => {
-		// 082a7f79 is the signature hash for closeCDP method
-		if (transaction.data.toString().startsWith('dfaf3658')) {
+		// 082a7f79 is the signature hash for closeCdp(address,uint256,uint256,address) method
+		if (transaction.data.toString().startsWith('46fde171')) {
 			if (this.burned) throw new Error(`CloseDelegatingContractDependencies is designed to be used once and then discarded, you should not use it for multiple calls.`)
 			this.burned = true
 			const proxy = new DSProxy(this.stashingContractDependencies, this.delegatorAddress)
