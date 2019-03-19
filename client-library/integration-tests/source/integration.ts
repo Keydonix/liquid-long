@@ -52,13 +52,13 @@ describe('liquid long tests', async () => {
 			affiliate: Wallet.fromMnemonic('fantasy fringe prosper bench jaguar sound corn course stick blade luggage wonder').connect(provider),
 		}
 		liquidLong = {
-			owner: LiquidLong.createJsonRpc(ethereumAddress, liquidLongAddress, 0, 10),
-			user: new LiquidLong(new TimeoutScheduler(), provider, wallets.user, liquidLongAddress, 0),
-			affiliate: new LiquidLong(new TimeoutScheduler(), provider, wallets.affiliate, liquidLongAddress, 0),
+			owner: LiquidLong.createJsonRpc(ethereumAddress, liquidLongAddress, async () => 0, 10),
+			user: new LiquidLong(new TimeoutScheduler(), provider, wallets.user, liquidLongAddress, async () => 0),
+			affiliate: new LiquidLong(new TimeoutScheduler(), provider, wallets.affiliate, liquidLongAddress, async () => 0),
 		}
-		const ownerDependencies = new ContractDependenciesEthers(provider, provider.getSigner(0), async () => 1)
-		const userDependencies = new ContractDependenciesEthers(provider, wallets.user, async () => 1)
-		const affiliateDependencies = new ContractDependenciesEthers(provider, wallets.affiliate, async () => 1)
+		const ownerDependencies = new ContractDependenciesEthers(provider, provider.getSigner(0), async () => 0)
+		const userDependencies = new ContractDependenciesEthers(provider, wallets.user, async () => 0)
+		const affiliateDependencies = new ContractDependenciesEthers(provider, wallets.affiliate, async () => 0)
 		// TODO: turn these into objects like weth
 		oasis = new Oasis(ownerDependencies, oasisAddress)
 		maker = new Tub(ownerDependencies, makerAddress)

@@ -15,7 +15,7 @@ export interface Signer {
 }
 
 export class ContractDependenciesEthers implements Dependencies<ethers.utils.BigNumber> {
-	public constructor(private readonly provider: Provider, private readonly signer: Signer, private readonly getGasPrice: () => Promise<number>) {}
+	public constructor(private readonly provider: Provider, private readonly signer: Signer, private readonly getGasPriceInNanoeth: () => Promise<number|undefined>) {}
 
 	call = async (transaction: Transaction<ethers.utils.BigNumber>): Promise<Uint8Array> => {
 		const ethersTransaction: ethers.providers.TransactionRequest = {
@@ -40,7 +40,8 @@ export class ContractDependenciesEthers implements Dependencies<ethers.utils.Big
 		delete ethersTransaction.from
 		// TODO: figure out a way to propagate a warning up to the user when we truncate the gas estimate, we don't currently have a mechanism for error propagation, so will require infrastructure work
 		ethersTransaction.gasLimit = Math.min(Math.max(Math.round(gasEstimate * 1.3), 250000), 5000000)
-		ethersTransaction.gasPrice = ethers.utils.bigNumberify(await this.getGasPrice() * 1e9)
+		const gasPrice = await this.getGasPriceInNanoeth()
+		Object.assign(ethersTransaction, (gasPrice !== undefined) ? { gasPrice: ethers.utils.bigNumberify(gasPrice * 1e9) } : {})
 		const ethersReceipt = await (await this.signer.sendTransaction(ethersTransaction)).wait()
 		// ethers has `status` on the receipt as optional, even though it isn't and never will be undefined if using a modern network (which this is designed for)
 		const receipt: TransactionReceipt = {

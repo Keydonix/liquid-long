@@ -14,25 +14,25 @@ export class LiquidLong {
 	private readonly providerFeeRate: PolledValue<number>
 	public readonly awaitReady: Promise<void>
 
-	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLong: Address, defaultGasPriceInNanoeth: number, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createWeb3(web3Provider: ethers.providers.AsyncSendable, liquidLong: Address, getGasPriceInNanoeth: () => Promise<number|undefined>, web3PollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
 		const provider = new ethers.providers.Web3Provider(web3Provider)
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = web3PollingInterval
-		return new LiquidLong(scheduler, provider, signer, liquidLong, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
+		return new LiquidLong(scheduler, provider, signer, liquidLong, getGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
 	}
 
-	static createJsonRpc(jsonRpcUrl: string, liquidLong: Address, defaultGasPriceInNanoeth: number, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
+	static createJsonRpc(jsonRpcUrl: string, liquidLong: Address, getGasPriceInNanoeth: () => Promise<number|undefined>, jsonRpcPollingInterval: number, ethPricePollingFrequency?: number, serviceFeePollingFrequency?: number): LiquidLong {
 		const scheduler = new TimeoutScheduler()
 		const provider = new ethers.providers.JsonRpcProvider(jsonRpcUrl);
 		const signer = provider.getSigner(0)
 		provider.pollingInterval = jsonRpcPollingInterval
-		return new LiquidLong(scheduler, provider, signer, liquidLong, defaultGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
+		return new LiquidLong(scheduler, provider, signer, liquidLong, getGasPriceInNanoeth, ethPricePollingFrequency, serviceFeePollingFrequency)
 	}
 
-	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLong: Address, defaultGasPriceInNanoeth: number, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
+	public constructor(scheduler: Scheduler, provider: Provider, signer: Signer, liquidLong: Address, getGasPriceInNanoeth: () => Promise<number|undefined>, ethPricePollingFrequency: number = 10000, providerFeePollingFrequency: number = 10000) {
 		this.contractAddress = liquidLong
-		this.contractDependencies = new ContractDependenciesEthers(provider, signer, async () => defaultGasPriceInNanoeth)
+		this.contractDependencies = new ContractDependenciesEthers(provider, signer, getGasPriceInNanoeth)
 		this.contract = new LiquidLongContract(this.contractDependencies, liquidLong)
 		this.maxLeverageSizeInEth = new PolledValue(scheduler, this.fetchMaxLeverageSizeInEth, ethPricePollingFrequency)
 		this.ethPriceInUsd = new PolledValue(scheduler, this.fetchEthPriceInUsd, ethPricePollingFrequency)
