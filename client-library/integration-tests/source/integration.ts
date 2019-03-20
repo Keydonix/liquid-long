@@ -88,8 +88,8 @@ describe('liquid long tests', async () => {
 		await fundAccount('affiliate', 1e9)
 		await liquidLong.owner.adminDepositEth(100)
 		await mkr.mint(liquidLongAddress, QUINTILLION)
-		await oasis.offer(QUINTILLION.mul(100), wethAddress, QUINTILLION.mul(600*100 * 1.02), daiAddress, bigNumberify(0))
-		await oasis.offer(QUINTILLION.mul(600*100), daiAddress, QUINTILLION.mul(100 * 1.02), wethAddress, bigNumberify(0))
+		await oasis.offer(QUINTILLION.mul(100), wethAddress, QUINTILLION.mul(600*101), daiAddress, bigNumberify(0))
+		await oasis.offer(QUINTILLION.mul(600*100), daiAddress, QUINTILLION.mul(101), wethAddress, bigNumberify(0))
 	})
 
 	afterEach(async () => {
@@ -184,6 +184,7 @@ describe('liquid long tests', async () => {
 	describe('closePosition', async () => {
 		it('should be able to close a leveraged position', async () => {
 			// arrange
+			const startingEthBalance = Number.parseInt((await wallets.user.getBalance()).toString(), 10) / 1e18
 			const fee = await liquidLong.user.getFeeInEth(2, 1)
 			const cost = (await liquidLong.user.getEstimatedCostsInEth(2, 1)).low
 			const cupId = await liquidLong.user.openPosition(2, 1, cost, fee)
@@ -191,14 +192,14 @@ describe('liquid long tests', async () => {
 			const proxy = await maker.lad_(encodedCupId)
 			// CDP fees change every second, so if the time between estimating this value and then actually closing the position ticks past a 1 second block boundary then the close will fail, so we fudge this by a tiny amount
 			const expectedPayout = await liquidLong.user.tryGetEstimatedCloseYieldInEth(proxy, cupId) - 0.000001
-			const startingEthBalance = Number.parseInt((await wallets.user.getBalance()).toString(), 10) / 1e18
 
 			// act
 			await liquidLong.user.closePosition(proxy, cupId, expectedPayout)
 
 			// assert
 			const endingEthBalance = Number.parseInt((await wallets.user.getBalance()).toString(), 10) / 1e18
-			expect(endingEthBalance).to.be.approximately(startingEthBalance + expectedPayout, 0.000001)
+			// -1% of 1 ETH for open fee, -1% of 1 ETH for close fee, -1% on 1 ETH worth of DAI sell spread, -1% on 1 ETH worth of DAI buy spread, -dust on Maker fees
+			expect(endingEthBalance).to.be.approximately(startingEthBalance - (1 * 0.04), 0.00001)
 			const lockedCollateral = (await maker.ink_(encodedCupId)).div(1e9).toNumber() / 1e9
 			expect(lockedCollateral).to.equal(0)
 		})
@@ -223,7 +224,7 @@ describe('liquid long tests', async () => {
 			const liquidLongBalanceChangeInAttoweth = endingLiquidLongAttoweth.sub(startingLiquidLongAttoweth).div(1e9).toNumber() / 1e9
 			const affiliateBalanceChangeInAttoweth = endingAffiliateAttoweth.sub(startingAffiliateAttoeth).div(1e9).toNumber() / 1e9
 			expect(affiliateBalanceChangeInAttoweth).to.be.greaterThan(0)
-			expect(liquidLongBalanceChangeInAttoweth).to.equal(affiliateBalanceChangeInAttoweth)
+			expect(liquidLongBalanceChangeInAttoweth).to.be.approximately(affiliateBalanceChangeInAttoweth, 0.00001) // fudge for rounding
 		})
 	})
 

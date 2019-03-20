@@ -603,7 +603,7 @@ contract LiquidLong is Ownable, Claimable, Pausable {
 		uint256 _debtInAttodai = maker.tab(_cdpId);
 
 		// Calculate what we need to claim out of the CDP in Weth
-		uint256 _lockedWethInAttoweth = _lockedPethInAttopeth.div27(maker.per());
+		uint256 _lockedWethInAttoweth = _lockedPethInAttopeth.mul27(maker.per());
 
 		// Buy DAI and wipe the entire CDP
 		// Pass in _lockedWethInAttoweth as "max fill amount". If buying DAI costs more in eth than the entire CDP has locked up, revert (we will fail later anyway)
